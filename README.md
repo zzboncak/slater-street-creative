@@ -16,6 +16,38 @@ npm run dev
 
 Open http://localhost:3000 to view.
 
+## Database (Prisma + Postgres)
+
+1) Install deps and init Prisma
+
+```bash
+npm install prisma @prisma/client
+npx prisma init
+```
+
+2) Set DATABASE_URL in `.env`
+
+```
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DBNAME?schema=public
+```
+
+3) Migrate and generate client
+
+```bash
+npx prisma migrate dev --name init
+```
+
+4) Admin basic auth (optional)
+
+Set in `.env` to protect `/admin`:
+
+```
+ADMIN_USER=admin
+ADMIN_PASS=change-me
+```
+
+Then visit http://localhost:3000/admin
+
 ## Project Structure
 
 - `src/app/page.tsx` – Landing page with hero + featured products
@@ -27,6 +59,10 @@ Open http://localhost:3000 to view.
 - `src/data/products.ts` – Mock products
 - `src/app/api/checkout/route.ts` – Checkout API (Stripe stub)
 - `src/app/api/customers/route.ts` – Customers API (in-memory stub)
+- `prisma/schema.prisma` – DB schema
+- `src/lib/prisma.ts` – Prisma client singleton
+- `src/middleware.ts` – Basic auth for `/admin`
+- `src/app/admin/*` – Admin pages (products, inventory, coupons)
 
 ## Stripe integration (stub -> real)
 
