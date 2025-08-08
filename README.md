@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Slater Street Candles
+
+A Next.js e-commerce starter for a candle shop. Includes:
+
+- Landing page with hero and stock imagery
+- About page
+- Products grid with mock data
+- Cart with add/remove/quantity and subtotal
+- API stubs for customers and checkout (Stripe-ready)
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 to view.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `src/app/page.tsx` – Landing page with hero + featured products
+- `src/app/about/page.tsx` – About page
+- `src/app/products/page.tsx` – Products listing
+- `src/app/cart/page.tsx` – Cart UI
+- `src/components/*` – Header, Footer, ProductCard
+- `src/context/CartContext.tsx` – Cart state provider
+- `src/data/products.ts` – Mock products
+- `src/app/api/checkout/route.ts` – Checkout API (Stripe stub)
+- `src/app/api/customers/route.ts` – Customers API (in-memory stub)
 
-## Learn More
+## Stripe integration (stub -> real)
 
-To learn more about Next.js, take a look at the following resources:
+1) Install Stripe SDK:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm install stripe
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2) Add `.env.local`:
 
-## Deploy on Vercel
+```
+STRIPE_SECRET_KEY=sk_live_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+SITE_URL=http://localhost:3000
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+3) Implement Checkout Session in `src/app/api/checkout/route.ts`:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```ts
+// import Stripe from "stripe";
+// import { NextRequest, NextResponse } from "next/server";
+// const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2025-04-30" });
+// export async function POST(req: NextRequest) {
+//   const { items } = await req.json();
+//   const session = await stripe.checkout.sessions.create({
+//     mode: "payment",
+//     success_url: `${process.env.SITE_URL}/thank-you`,
+//     cancel_url: `${process.env.SITE_URL}/cart`,
+//     line_items: items.map((i: { name: string; amount: number; quantity: number }) => ({
+//       price_data: { currency: "usd", product_data: { name: i.name }, unit_amount: i.amount },
+//       quantity: i.quantity,
+//     })),
+//   });
+//   return NextResponse.json({ url: session.url });
+// }
+```
+
+4) Send cart to API from `src/app/cart/page.tsx`:
+
+```ts
+await fetch("/api/checkout", {
+	method: "POST",
+	headers: { "Content-Type": "application/json" },
+	body: JSON.stringify({
+		items: items.map(({ product, quantity }) => ({
+			name: product.name,
+			amount: product.price,
+			quantity,
+		})),
+	}),
+});
+```
+
+## Future backend
+
+- Replace mock `src/app/api/customers/route.ts` with a database (Prisma + Postgres)
+- Admin pages for products and orders
+- Webhooks endpoint `/api/stripe/webhook` to verify payments and fulfill orders
