@@ -124,3 +124,33 @@ await fetch("/api/checkout", {
 - Replace mock `src/app/api/customers/route.ts` with a database (Prisma + Postgres)
 - Admin pages for products and orders
 - Webhooks endpoint `/api/stripe/webhook` to verify payments and fulfill orders
+
+## Local Postgres via Docker (Recommended for Dev)
+
+This repo includes a `docker-compose.yml` defining a Postgres 16 service and a helper script `npm run dev:db` that:
+
+- Starts the DB container (or leaves it running if already up)
+- Waits until Postgres is ready to accept connections
+- Runs `prisma generate` and applies migrations
+- Starts the Next.js dev server
+
+Steps:
+
+1) Optionally create `.env.local` with your connection string (the script defaults to this):
+
+```
+DATABASE_URL="postgresql://postgres:postgres@localhost:5433/slater?schema=public"
+```
+
+2) Start dev with DB:
+
+```bash
+npm run dev:db
+```
+
+DB utilities:
+
+```bash
+npm run db:up   # start DB container only
+npm run db:down # stop and remove containers
+```

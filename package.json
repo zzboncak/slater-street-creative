@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+  "dev": "next dev --turbopack",
+  "dev:db": "bash scripts/dev.sh",
+  "db:up": "docker compose up -d db",
+  "db:down": "docker compose down",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
