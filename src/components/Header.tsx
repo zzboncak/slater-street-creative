@@ -13,6 +13,7 @@ export default function Header() {
         <nav className="flex items-center gap-6 text-sm">
           <Link href="/products" className="hover:underline">Products</Link>
           <Link href="/about" className="hover:underline">About</Link>
+          <Link href="/login" className="hover:underline">Login</Link>
           <Link href="/cart" className="relative">
             <span className="hover:underline">Cart</span>
             {count > 0 && (

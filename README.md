@@ -59,6 +59,8 @@ Then visit http://localhost:3000/admin
 - `src/data/products.ts` – Mock products
 - `src/app/api/checkout/route.ts` – Checkout API (Stripe stub)
 - `src/app/api/customers/route.ts` – Customers API (in-memory stub)
+- `src/app/api/auth/*` – Signup/Login/Logout APIs (email/password with hashed storage + JWT cookie)
+- `src/app/(auth)/*` – Signup/Login pages
 - `prisma/schema.prisma` – DB schema
 - `src/lib/prisma.ts` – Prisma client singleton
 - `src/middleware.ts` – Basic auth for `/admin`
