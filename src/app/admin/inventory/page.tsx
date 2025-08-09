@@ -1,5 +1,4 @@
 export const dynamic = "force-dynamic";
-import { prisma } from "@/lib/prisma";
 
 type ProductWithInventory = {
   id: string;
@@ -8,7 +7,11 @@ type ProductWithInventory = {
 };
 
 export default async function AdminInventoryPage() {
-  const products: ProductWithInventory[] = await prisma.product.findMany({ include: { inventory: true }, orderBy: { name: "asc" } });
+  let products: ProductWithInventory[] = [];
+  if (process.env.DATABASE_URL) {
+    const { prisma } = await import("@/lib/prisma");
+    products = (await prisma.product.findMany({ include: { inventory: true }, orderBy: { name: "asc" } })) as unknown as ProductWithInventory[];
+  }
   return (
     <div className="space-y-6">
       <h2 className="text-lg font-medium">Adjust inventory</h2>
@@ -33,6 +36,8 @@ async function updateInventory(formData: FormData) {
   const id = String(formData.get("id"));
   const quantity = Number(formData.get("quantity"));
   if (!Number.isFinite(quantity)) return;
+  if (!process.env.DATABASE_URL) return;
+  const { prisma } = await import("@/lib/prisma");
   await prisma.inventory.upsert({
     where: { productId: id },
     update: { quantity },

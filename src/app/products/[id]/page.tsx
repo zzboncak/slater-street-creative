@@ -34,8 +34,9 @@ async function loadProduct(id: string): Promise<UIProduct | null> {
   return getProductById(id) ?? null;
 }
 
-export default async function ProductDetailsPage({ params }: { params: { id: string } }) {
-  const product = await loadProduct(params.id);
+export default async function ProductDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const product = await loadProduct(id);
   if (!product) return notFound();
 
   return (

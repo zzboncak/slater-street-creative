@@ -1,5 +1,4 @@
 export const dynamic = "force-dynamic";
-import { prisma } from "@/lib/prisma";
 type Coupon = {
   id: string;
   code: string;
@@ -13,7 +12,11 @@ type Coupon = {
 };
 
 export default async function AdminCouponsPage() {
-  const coupons: Coupon[] = await prisma.coupon.findMany({ orderBy: { createdAt: "desc" } });
+  let coupons: Coupon[] = [];
+  if (process.env.DATABASE_URL) {
+    const { prisma } = await import("@/lib/prisma");
+    coupons = (await prisma.coupon.findMany({ orderBy: { createdAt: "desc" } })) as unknown as Coupon[];
+  }
   return (
     <div className="space-y-6">
       <form action={createCoupon} className="border rounded p-4 space-y-2">
@@ -84,12 +87,16 @@ async function createCoupon(formData: FormData) {
     validTo: validToStr ? new Date(validToStr) : null,
   };
   if (!code) return;
+  if (!process.env.DATABASE_URL) return;
+  const { prisma } = await import("@/lib/prisma");
   await prisma.coupon.create({ data });
 }
 
 async function toggleActive(formData: FormData) {
   "use server";
   const id = String(formData.get("id"));
+  if (!process.env.DATABASE_URL) return;
+  const { prisma } = await import("@/lib/prisma");
   const c = await prisma.coupon.findUnique({ where: { id } });
   if (!c) return;
   await prisma.coupon.update({ where: { id }, data: { active: !c.active } });
@@ -98,5 +105,7 @@ async function toggleActive(formData: FormData) {
 async function deleteCoupon(formData: FormData) {
   "use server";
   const id = String(formData.get("id"));
+  if (!process.env.DATABASE_URL) return;
+  const { prisma } = await import("@/lib/prisma");
   await prisma.coupon.delete({ where: { id } }).catch(() => {});
 }

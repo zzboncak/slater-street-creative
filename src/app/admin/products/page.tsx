@@ -1,5 +1,4 @@
 export const dynamic = "force-dynamic";
-import { prisma } from "@/lib/prisma";
 
 type ProductWithInventory = {
   id: string;
@@ -10,7 +9,11 @@ type ProductWithInventory = {
 };
 
 export default async function AdminProductsPage() {
-  const products: ProductWithInventory[] = await prisma.product.findMany({ orderBy: { createdAt: "desc" }, include: { inventory: true } });
+  let products: ProductWithInventory[] = [];
+  if (process.env.DATABASE_URL) {
+    const { prisma } = await import("@/lib/prisma");
+    products = (await prisma.product.findMany({ orderBy: { createdAt: "desc" }, include: { inventory: true } })) as unknown as ProductWithInventory[];
+  }
 
   return (
     <div className="space-y-6">
@@ -67,12 +70,16 @@ async function createProduct(formData: FormData) {
   const description = String(formData.get("description") || "").trim() || null;
   const image = String(formData.get("image") || "").trim() || null;
   if (!name || !Number.isFinite(priceCents)) return;
+  if (!process.env.DATABASE_URL) return;
+  const { prisma } = await import("@/lib/prisma");
   await prisma.product.create({ data: { name, priceCents, description, image, inventory: { create: { quantity: 0 } } } });
 }
 
 async function toggleActive(formData: FormData) {
   "use server";
   const id = String(formData.get("id"));
+  if (!process.env.DATABASE_URL) return;
+  const { prisma } = await import("@/lib/prisma");
   const p = await prisma.product.findUnique({ where: { id } });
   if (!p) return;
   await prisma.product.update({ where: { id }, data: { active: !p.active } });
@@ -81,5 +88,7 @@ async function toggleActive(formData: FormData) {
 async function deleteProduct(formData: FormData) {
   "use server";
   const id = String(formData.get("id"));
+  if (!process.env.DATABASE_URL) return;
+  const { prisma } = await import("@/lib/prisma");
   await prisma.product.delete({ where: { id } }).catch(() => {});
 }
