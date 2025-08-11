@@ -16,7 +16,12 @@ async function main() {
     await prisma.user.create({ data: { email, passwordHash, role: "ADMIN" } });
     console.log("Seeded admin user: 'admin' / 'admin'");
   } else {
-    console.log("Admin user already exists");
+    if (existing.role !== "ADMIN" || existing.passwordHash !== passwordHash) {
+      await prisma.user.update({ where: { email }, data: { role: "ADMIN", passwordHash } });
+      console.log("Updated existing admin to role ADMIN with default password.");
+    } else {
+      console.log("Admin user already exists");
+    }
   }
 }
 
