@@ -1,4 +1,4 @@
-export const metadata = { title: "Sign up" };
+export const metadata = { title: "Sign up", robots: { index: false, follow: false } };
 
 export default function SignupPage() {
   async function handleSignup(formData: FormData) {

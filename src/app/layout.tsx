@@ -15,12 +15,32 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteName = "Slater Street Candles";
+const siteDescription = "Hand-poured, premium candles. Natural wax, clean scents, fast shipping.";
+const baseUrl = new URL(process.env.SITE_URL || "https://slaterstreetcreative.com");
+
 export const metadata: Metadata = {
+  metadataBase: baseUrl,
   title: {
-    default: "Slater Street Candles",
-    template: "%s · Slater Street Candles",
+    default: siteName,
+    template: "%s · " + siteName,
   },
-  description: "Hand-poured candles for cozy spaces.",
+  description: siteDescription,
+  applicationName: siteName,
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName,
+    title: siteName,
+    description: siteDescription,
+    url: baseUrl,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteName,
+    description: siteDescription,
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({

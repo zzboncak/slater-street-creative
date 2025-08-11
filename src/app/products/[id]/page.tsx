@@ -1,4 +1,5 @@
 import Image from "next/image";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getProductById } from "@/data/products";
 import type { Product as UIProduct } from "@/types";
@@ -34,13 +35,78 @@ async function loadProduct(id: string): Promise<UIProduct | null> {
   return getProductById(id) ?? null;
 }
 
+function JsonLd({ data }: { data: unknown }) {
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />;
+}
+
+export async function generateMetadata(
+  { params }: { params: Promise<{ id: string }> }
+): Promise<Metadata> {
+  const { id } = await params;
+  const product = await loadProduct(id);
+  if (!product) return { title: "Product not found", robots: { index: false, follow: false } };
+
+  const title = product.name;
+  const description = product.description || "Premium hand-poured candle.";
+  const base = process.env.SITE_URL || "https://slaterstreetcreative.com";
+  const canonical = `${base}/products/${product.id}`;
+  const imageUrl = product.image ? (product.image.startsWith("http") ? product.image : `${base}${product.image}`) : undefined;
+
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      type: "website",
+      images: imageUrl ? [{ url: imageUrl }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: imageUrl ? [imageUrl] : undefined,
+    },
+  };
+}
+
 export default async function ProductDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const product = await loadProduct(id);
   if (!product) return notFound();
 
+  const base = process.env.SITE_URL || "https://slaterstreetcreative.com";
+  const productLd = {
+    "@context": "https://schema.org/",
+    "@type": "Product",
+    name: product.name,
+    description: product.description || undefined,
+    image: product.image ? (product.image.startsWith("http") ? product.image : `${base}${product.image}`) : undefined,
+    sku: product.id,
+    offers: {
+      "@type": "Offer",
+      priceCurrency: "USD",
+      price: (product.price / 100).toFixed(2),
+      availability: "https://schema.org/InStock",
+      url: `${base}/products/${product.id}`,
+    },
+  };
+  const breadcrumbsLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: `${base}/` },
+      { "@type": "ListItem", position: 2, name: "Products", item: `${base}/products` },
+      { "@type": "ListItem", position: 3, name: product.name, item: `${base}/products/${product.id}` },
+    ],
+  };
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 grid gap-8 md:grid-cols-2 items-start">
+      <JsonLd data={productLd} />
+      <JsonLd data={breadcrumbsLd} />
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-black/10 dark:border-white/15">
         <Image
           src={product.image}

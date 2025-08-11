@@ -1,4 +1,4 @@
-export const metadata = { title: "Thank you" };
+export const metadata = { title: "Thank you", robots: { index: false, follow: false } };
 
 import ClearCartOnMount from "./safe-clear";
 

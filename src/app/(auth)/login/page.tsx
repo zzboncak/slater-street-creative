@@ -1,4 +1,4 @@
-export const metadata = { title: "Log in" };
+export const metadata = { title: "Log in", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
