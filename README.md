@@ -154,3 +154,19 @@ DB utilities:
 npm run db:up   # start DB container only
 npm run db:down # stop and remove containers
 ```
+
+## Cloudflare Images (optional)
+
+Configure Cloudflare Images to host product photos.
+
+1) In Cloudflare dashboard, enable Images and create an API Token with Images:Edit.
+
+2) Add to `.env` (see `.env.example`):
+
+```
+CF_ACCOUNT_ID=...
+CF_IMAGES_TOKEN=...
+NEXT_PUBLIC_CF_IMAGES_BASE_URL=https://imagedelivery.net/<account_hash>
+```
+
+3) In Admin → Products, use the uploader. It saves the returned image id to the product. Rendering uses Next/Image with domains allowed in `next.config.ts`.

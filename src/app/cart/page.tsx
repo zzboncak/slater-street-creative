@@ -4,6 +4,7 @@ import { useCart } from "@/context/CartContext";
 import Image from "next/image";
 import Link from "next/link";
 import { formatPrice } from "@/components/ProductCard";
+import { cfImageUrl } from "@/lib/cloudflare-images";
 
 export default function CartPage() {
   const { items, remove, setQty, clear, subtotal } = useCart();
@@ -34,7 +35,11 @@ export default function CartPage() {
             {items.map(({ product, quantity }) => (
               <li key={product.id} className="flex items-center gap-4 border rounded-md p-3">
                 <div className="relative h-20 w-24 flex-shrink-0 overflow-hidden rounded">
-                  <Image src={product.image} alt={product.name} fill className="object-cover" />
+                  {(() => {
+                    const isAbs = /^https?:\/\//i.test(product.image);
+                    const src = isAbs ? product.image : cfImageUrl(product.image, "public");
+                    return <Image src={src} alt={product.name} fill className="object-cover" />;
+                  })()}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">

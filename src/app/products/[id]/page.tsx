@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getProductById } from "@/data/products";
 import type { Product as UIProduct } from "@/types";
 import AddToCart from "@/components/AddToCart";
+import { cfImageUrl } from "@/lib/cloudflare-images";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +51,9 @@ export async function generateMetadata(
   const description = product.description || "Premium hand-poured candle.";
   const base = process.env.SITE_URL || "https://slaterstreetcreative.com";
   const canonical = `${base}/products/${product.id}`;
-  const imageUrl = product.image ? (product.image.startsWith("http") ? product.image : `${base}${product.image}`) : undefined;
+  const imageUrl = product.image
+    ? (/^https?:\/\//.test(product.image) ? product.image : cfImageUrl(product.image, "public"))
+    : undefined;
 
   return {
     title,
@@ -83,7 +86,7 @@ export default async function ProductDetailsPage({ params }: { params: Promise<{
     "@type": "Product",
     name: product.name,
     description: product.description || undefined,
-    image: product.image ? (product.image.startsWith("http") ? product.image : `${base}${product.image}`) : undefined,
+  image: product.image ? (/^https?:\/\//.test(product.image) ? product.image : cfImageUrl(product.image, "public")) : undefined,
     sku: product.id,
     offers: {
       "@type": "Offer",
@@ -108,13 +111,19 @@ export default async function ProductDetailsPage({ params }: { params: Promise<{
       <JsonLd data={productLd} />
       <JsonLd data={breadcrumbsLd} />
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-black/10 dark:border-white/15">
-        <Image
-          src={product.image}
+        {(() => {
+          const isAbs = /^https?:\/\//i.test(product.image);
+          const src = isAbs ? product.image : cfImageUrl(product.image, "public");
+          return (
+            <Image
+          src={src}
           alt={product.name}
           fill
           sizes="(min-width: 1024px) 600px, 100vw"
           className="object-cover"
         />
+          );
+        })()}
       </div>
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold">{product.name}</h1>

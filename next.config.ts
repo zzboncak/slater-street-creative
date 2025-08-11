@@ -1,5 +1,12 @@
 import type { NextConfig } from "next";
 
+// Optionally allow a custom Cloudflare Images base URL via env
+const cfBase = process.env.NEXT_PUBLIC_CF_IMAGES_BASE_URL;
+let cfHost: string | null = null;
+try {
+  if (cfBase) cfHost = new URL(cfBase).hostname;
+} catch {}
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -15,6 +22,20 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "images.pexels.com",
       },
+      // Cloudflare Images delivery domain
+      {
+        protocol: "https",
+        hostname: "imagedelivery.net",
+      },
+      // If a custom base host is configured, allow it too
+      ...(cfHost
+        ? [
+            {
+              protocol: "https" as const,
+              hostname: cfHost,
+            },
+          ]
+        : []),
     ],
   },
 };

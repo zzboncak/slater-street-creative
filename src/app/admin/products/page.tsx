@@ -8,6 +8,9 @@ type ProductWithInventory = {
   inventory: { quantity: number } | null;
 };
 
+// Client-side uploader for Cloudflare Images
+import CFImageField from "@/components/admin/ImageField";
+
 export default async function AdminProductsPage() {
   let products: ProductWithInventory[] = [];
   if (process.env.DATABASE_URL) {
@@ -22,7 +25,11 @@ export default async function AdminProductsPage() {
         <div className="grid gap-2 sm:grid-cols-2">
           <input name="name" placeholder="Name" className="border rounded px-2 py-1" required />
           <input name="priceCents" placeholder="Price (cents)" type="number" className="border rounded px-2 py-1" required />
-          <input name="image" placeholder="Image URL" className="border rounded px-2 py-1 sm:col-span-2" />
+          {/* Image: supports Cloudflare Images direct upload; stores returned id in hidden input */}
+          <div className="sm:col-span-2 space-y-1">
+            <label className="text-xs text-gray-600">Image (Cloudflare Images or URL)</label>
+            <CFImageField name="image" />
+          </div>
           <textarea name="description" placeholder="Description" className="border rounded px-2 py-1 sm:col-span-2" />
         </div>
         <button className="rounded bg-black text-white px-3 py-1.5">Create</button>

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import type { Product } from "@/types";
+import { cfImageUrl } from "@/lib/cloudflare-images";
 
 export function formatPrice(cents: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
@@ -11,11 +12,13 @@ export function formatPrice(cents: number) {
 
 export default function ProductCard({ product }: { product: Product }) {
   const { add } = useCart();
+  const isAbsolute = /^https?:\/\//i.test(product.image);
+  const src = isAbsolute ? product.image : cfImageUrl(product.image, "public");
   return (
     <div className="group rounded-lg border border-black/10 dark:border-white/15 overflow-hidden bg-white/90 dark:bg-black/30">
       <Link href={`/products/${product.id}`} className="block relative aspect-[4/3]">
         <Image
-          src={product.image}
+          src={src}
           alt={product.name}
           fill
           sizes="(min-width: 1024px) 300px, (min-width: 640px) 33vw, 100vw"
