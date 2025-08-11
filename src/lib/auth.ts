@@ -2,8 +2,9 @@ import crypto from "node:crypto";
 import { cookies } from "next/headers";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
+export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
-type JwtPayload = { sub: string; email: string; iat: number; exp: number };
+type JwtPayload = { sub: string; email: string; jti: string; iat: number; exp: number };
 
 export function hashPassword(password: string) {
   return crypto.pbkdf2Sync(password, JWT_SECRET, 100_000, 32, "sha256").toString("hex");
@@ -18,10 +19,10 @@ function base64url(input: Buffer | string) {
   return Buffer.from(input).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
 
-export function signJwt(payload: Omit<JwtPayload, "iat" | "exp">, ttlSeconds = 60 * 60 * 24 * 7) {
+export function signJwt(payload: Omit<JwtPayload, "iat" | "exp">, ttlSeconds = SESSION_TTL_SECONDS) {
   const header = { alg: "HS256", typ: "JWT" };
   const now = Math.floor(Date.now() / 1000);
-  const full: JwtPayload = { ...payload, iat: now, exp: now + ttlSeconds };
+  const full: JwtPayload = { ...payload, iat: now, exp: now + ttlSeconds } as JwtPayload;
   const headerB64 = base64url(JSON.stringify(header));
   const payloadB64 = base64url(JSON.stringify(full));
   const data = `${headerB64}.${payloadB64}`;

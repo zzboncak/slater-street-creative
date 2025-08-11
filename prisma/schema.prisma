@@ -65,4 +65,18 @@ model User {
 
   customerId   String?   @unique
   customer     Customer? @relation(fields: [customerId], references: [id])
+
+  sessions     Session[]
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent  String?
+  ip         String?
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastUsedAt DateTime?
 }

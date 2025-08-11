@@ -8,14 +8,19 @@ export default function LoginPage({ searchParams }: { searchParams: Promise<{ ne
     "use server";
     const email = String(formData.get("email") || "").toLowerCase().trim();
     const password = String(formData.get("password") || "");
+    if (!process.env.DATABASE_URL) {
+      redirect("/login?error=db");
+    }
     const { prisma } = await import("@/lib/prisma");
-    const { verifyPassword, setSessionCookie, signJwt } = await import("@/lib/auth");
+  const { verifyPassword, setSessionCookie, signJwt, SESSION_TTL_SECONDS } = await import("@/lib/auth");
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user || !verifyPassword(password, user.passwordHash)) {
       redirect("/login?error=invalid");
     }
-    const token = signJwt({ sub: user.id, email: user.email });
-    await setSessionCookie(token);
+  const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
+  const session = await prisma.session.create({ data: { userId: user.id, expiresAt } });
+  const token = signJwt({ sub: user.id, email: user.email, jti: session.id });
+  await setSessionCookie(token);
   const params = await searchParams;
   const next = params?.next || "/account";
   redirect(next);
