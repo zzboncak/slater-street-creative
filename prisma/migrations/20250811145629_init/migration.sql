@@ -1,3 +1,6 @@
+-- CreateEnum
+CREATE TYPE "public"."Role" AS ENUM ('ADMIN', 'USER');
+
 -- CreateTable
 CREATE TABLE "public"."Product" (
     "id" TEXT NOT NULL,
@@ -52,9 +55,24 @@ CREATE TABLE "public"."User" (
     "email" TEXT NOT NULL,
     "passwordHash" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "role" "public"."Role" NOT NULL DEFAULT 'USER',
     "customerId" TEXT,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."Session" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "userAgent" TEXT,
+    "ip" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "revokedAt" TIMESTAMP(3),
+    "lastUsedAt" TIMESTAMP(3),
+
+    CONSTRAINT "Session_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -77,3 +95,6 @@ ALTER TABLE "public"."Inventory" ADD CONSTRAINT "Inventory_productId_fkey" FOREI
 
 -- AddForeignKey
 ALTER TABLE "public"."User" ADD CONSTRAINT "User_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "public"."Customer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

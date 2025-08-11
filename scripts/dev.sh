@@ -24,10 +24,9 @@ for i in {1..30}; do
   fi
 done
 
-# Run Prisma migrations (safe for dev; no-op if already applied)
+# Run Prisma migrations (safe for dev; applies pending, doesn't create empty ones)
 echo "[dev] Running Prisma generate & migrate..."
 npx prisma generate
-npx prisma migrate dev --name "auto-dev" --create-only >/dev/null 2>&1 || true
 npx prisma migrate deploy || true
 
 # Seed admin user (admin/admin)
