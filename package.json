@@ -7,6 +7,7 @@
     "dev:db": "bash scripts/dev.sh",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
+  "db:seed": "node prisma/seed.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

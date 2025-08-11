@@ -30,6 +30,9 @@ npx prisma generate
 npx prisma migrate dev --name "auto-dev" --create-only >/dev/null 2>&1 || true
 npx prisma migrate deploy || true
 
+# Seed admin user (admin/admin)
+npm run db:seed || true
+
 # Start Next.js dev server
 echo "[dev] Starting Next.js dev server..."
 exec npm run dev --silent

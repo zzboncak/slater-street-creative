@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   if (existing) return NextResponse.json({ error: "email already registered" }, { status: 409 });
 
   const passwordHash = hashPassword(password);
-  const user = await prisma.user.create({ data: { email, passwordHash } });
+  const user = await prisma.user.create({ data: { email, passwordHash, role: "USER" } });
 
   // Optionally link/create customer record on signup
   const customer = await prisma.customer.upsert({
