@@ -27,6 +27,15 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "imagedelivery.net",
       },
+      // Allow images from your WordPress/demo host
+      {
+        protocol: "https",
+        hostname: "*.hqdemo.app",
+      },
+      {
+        protocol: "https",
+        hostname: "revere-health.hqdemo.app",
+      },
       // If a custom base host is configured, allow it too
       ...(cfHost
         ? [

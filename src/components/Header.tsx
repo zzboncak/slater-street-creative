@@ -35,6 +35,7 @@ export default function Header() {
         <nav className="flex items-center gap-6 text-sm">
           <Link href="/products" className="hover:underline">Products</Link>
           <Link href="/about" className="hover:underline">About</Link>
+          <Link href="/contact" className="hover:underline">Contact</Link>
           {auth?.authenticated ? (
             <a href="#logout" onClick={onLogoutClick} className="hover:underline">Logout</a>
           ) : (
