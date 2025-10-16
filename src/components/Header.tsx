@@ -34,7 +34,7 @@ export default function Header() {
     <header className="sticky top-0 z-40 backdrop-blur bg-background/70 border-b border-black/10 dark:border-white/10">
       <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
         <Link href="/" className="text-lg font-semibold tracking-tight">
-          Slater Street Candles
+          Slater Street Creative
         </Link>
         <nav className="flex items-center gap-6 text-sm">
           <Link href="/about" className="hover:underline">
@@ -42,6 +42,9 @@ export default function Header() {
           </Link>
           <Link href="/contact" className="hover:underline">
             Contact
+          </Link>
+          <Link href="/candles" className="hover:underline">
+            Candles
           </Link>
           {ENABLE_ECOMMERCE && (
             <>

@@ -8,7 +8,7 @@ export default function ContactPage() {
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold">Contact Us</h1>
         <p className="text-gray-600">
-          For inquiries, please email us at{" "}
+          For orders, inquiries, or custom scent blends, contact{" "}
           <a
             href="mailto:info@slaterstreetcreative.com"
             className="text-blue-600 underline"

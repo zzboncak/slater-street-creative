@@ -12,7 +12,8 @@ export default function Home() {
     return (
       <div>
         <section className="relative isolate">
-          <div className="absolute inset-0 -z-10">
+          {/* <div className="absolute inset-0 -z-10">
+            TODO: Add background image
             <Image
               src="https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1920&auto=format&fit=crop&q=60"
               alt="Candles background"
@@ -22,26 +23,29 @@ export default function Home() {
               className="object-cover"
             />
             <div className="absolute inset-0 bg-black/40" />
-          </div>
-          <div className="mx-auto max-w-6xl px-4 py-28 text-center text-white">
+          </div> */}
+          <div className="mx-auto max-w-6xl px-4 py-28 text-center">
             <h1 className="text-4xl md:text-6xl font-semibold tracking-tight">
-              Welcome to Our Landing Page
+              Slater Street Creative
             </h1>
-            <p className="mt-4 text-lg/7 max-w-2xl mx-auto text-white/90">
-              Discover more about us and get in touch.
-            </p>
             <div className="mt-8 flex items-center justify-center gap-4">
               <Link
                 href="/about"
-                className="rounded-md bg-white/10 text-white px-5 py-3 font-medium hover:bg-white/20"
+                className="rounded-md bg-white text-black px-5 py-3 font-medium hover:opacity-90"
               >
-                Learn more
+                About
               </Link>
               <Link
                 href="/contact"
                 className="rounded-md bg-white text-black px-5 py-3 font-medium hover:opacity-90"
               >
-                Contact us
+                Contact
+              </Link>
+              <Link
+                href="/candles"
+                className="rounded-md bg-white text-black px-5 py-3 font-medium hover:opacity-90"
+              >
+                Candles
               </Link>
             </div>
           </div>
@@ -85,7 +89,7 @@ export default function Home() {
               href="/about"
               className="rounded-md bg-white/10 text-white px-5 py-3 font-medium hover:bg-white/20"
             >
-              Learn more
+              About
             </Link>
           </div>
         </div>
