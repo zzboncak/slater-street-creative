@@ -26,6 +26,7 @@ export default function Home() {
           </div> */}
           <div className="mx-auto max-w-6xl px-4 py-28 text-center">
             <h1 className="text-4xl md:text-6xl font-semibold tracking-tight">
+              {/** the "Creative" word should be in the "Holiday" font */}
               Slater Street Creative
             </h1>
             <div className="mt-8 flex items-center justify-center gap-4">
