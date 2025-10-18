@@ -29,13 +29,13 @@
   --font-mono: var(--font-geist-mono);
   --color-muted-foreground: rgba(1, 1, 1, 0.55);
 }
-
-@media (prefers-color-scheme: dark) {
+/** Dark mode styles (optional) - re-enable when ready */
+/* @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
-}
+} */
 
 body {
   background: var(--background);
