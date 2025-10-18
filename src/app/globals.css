@@ -16,6 +16,22 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "Boston Angel";
+  src: url("./fonts/Boston Angel Light.otf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Holiday";
+  src: url("./fonts/Holiday.otf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --background: #e8e1e1;
   --foreground: #171717;
@@ -58,4 +74,8 @@ body {
 
 .text-muted-foreground {
   color: var(--color-muted-foreground);
+}
+
+.font-holiday {
+  font-family: "Holiday", cursive;
 }

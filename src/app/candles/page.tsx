@@ -6,7 +6,7 @@ const CandlesPage = () => {
       <h1 className="text-4xl font-light text-center mb-12">
         Candle Scent Catalog
       </h1>
-      <div className="space-y-4 text-lg leading-relaxed tracking-wide text-center">
+      <div className="space-y-4 text-base leading-relaxed tracking-wide text-center font-light">
         <p>
           <span className="font-bold">The Garden</span> — tomato leaf | fresh
           basil | cucumber

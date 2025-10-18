@@ -13,7 +13,7 @@ export default function AboutPage() {
             All of our candles feature:
           </h2>
           <ul className="space-y-2 list-disc pl-6 text-lg">
-            <li>All natural, U.S.-grown soy wax</li>
+            <li>All-natural, U.S.-grown soy wax</li>
             <li>Lead-free cotton wicks</li>
             <li>Vegan and cruelty-free ingredients</li>
             <li>
@@ -35,8 +35,8 @@ export default function AboutPage() {
           <ul className="space-y-2 list-disc pl-6 text-lg">
             <li>Most candles are made using recycled jars.</li>
             <li>
-              All scents uniquely blended, and products are handmade in small
-              batches in Sugar Grove, IL.
+              All scents are uniquely blended, and products are handmade in
+              small batches in Sugar Grove, IL.
             </li>
             <li>
               Have a custom request? Contact{" "}

@@ -25,10 +25,14 @@ export default function Home() {
             <div className="absolute inset-0 bg-black/40" />
           </div> */}
           <div className="mx-auto max-w-6xl px-4 py-28 text-center">
-            <h1 className="text-4xl md:text-6xl font-semibold tracking-tight">
-              {/** the "Creative" word should be in the "Holiday" font */}
-              Slater Street Creative
-            </h1>
+            <div className="flex flex-col">
+              <h1 className="text-4xl md:text-6xl font-semibold tracking-tight">
+                Slater Street{" "}
+              </h1>
+              <span className="relative inline-block font-holiday rotate-345 left-21 bottom-2">
+                creative
+              </span>
+            </div>
             <div className="mt-8 flex items-center justify-center gap-4">
               <Link
                 href="/about"
