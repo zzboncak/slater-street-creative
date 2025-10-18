@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 @font-face {
-  font-family: 'Boston Angel';
-  src: url('./fonts/Boston Angel Regular.ttf') format('truetype');
+  font-family: "Boston Angel";
+  src: url("./fonts/Boston Angel Regular.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'Boston Angel';
-  src: url('./fonts/Boston Angel Bold.otf') format('truetype');
+  font-family: "Boston Angel";
+  src: url("./fonts/Boston Angel Bold.otf") format("truetype");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -40,7 +40,22 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Boston Angel', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  font-family:
+    "Boston Angel",
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Noto Sans,
+    Ubuntu,
+    Cantarell,
+    Helvetica Neue,
+    Arial,
+    "Apple Color Emoji",
+    "Segoe UI Emoji";
 }
 
-.text-muted-foreground { color: var(--color-muted-foreground); }
+.text-muted-foreground {
+  color: var(--color-muted-foreground);
+}

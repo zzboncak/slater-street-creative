@@ -10,7 +10,10 @@ export async function POST() {
     const payload = verifyJwt(token);
     if (payload?.jti) {
       const { prisma } = await import("@/lib/prisma");
-      await prisma.session.updateMany({ where: { id: payload.jti, revokedAt: null }, data: { revokedAt: new Date() } });
+      await prisma.session.updateMany({
+        where: { id: payload.jti, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
     }
   }
   await clearSessionCookie();

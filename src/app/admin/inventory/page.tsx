@@ -10,7 +10,10 @@ export default async function AdminInventoryPage() {
   let products: ProductWithInventory[] = [];
   if (process.env.DATABASE_URL) {
     const { prisma } = await import("@/lib/prisma");
-    products = (await prisma.product.findMany({ include: { inventory: true }, orderBy: { name: "asc" } })) as unknown as ProductWithInventory[];
+    products = (await prisma.product.findMany({
+      include: { inventory: true },
+      orderBy: { name: "asc" },
+    })) as unknown as ProductWithInventory[];
   }
   return (
     <div className="space-y-6">
@@ -21,8 +24,15 @@ export default async function AdminInventoryPage() {
             <span className="w-56 truncate">{p.name}</span>
             <form action={updateInventory} className="flex items-center gap-2">
               <input type="hidden" name="id" value={p.id} />
-              <input name="quantity" defaultValue={p.inventory?.quantity ?? 0} type="number" className="w-24 border rounded px-2 py-1" />
-              <button className="rounded bg-black text-white px-3 py-1.5">Save</button>
+              <input
+                name="quantity"
+                defaultValue={p.inventory?.quantity ?? 0}
+                type="number"
+                className="w-24 border rounded px-2 py-1"
+              />
+              <button className="rounded bg-black text-white px-3 py-1.5">
+                Save
+              </button>
             </form>
           </li>
         ))}

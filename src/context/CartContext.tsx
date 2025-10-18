@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useReducer } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+} from "react";
 import type { CartItem, Product } from "@/types";
 
 // Simple cart reducer
@@ -17,22 +23,30 @@ function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "ADD": {
       const qty = action.quantity ?? 1;
-      const idx = state.items.findIndex((i) => i.product.id === action.product.id);
+      const idx = state.items.findIndex(
+        (i) => i.product.id === action.product.id,
+      );
       if (idx >= 0) {
         const items = [...state.items];
         items[idx] = { ...items[idx], quantity: items[idx].quantity + qty };
         return { items };
       }
-      return { items: [...state.items, { product: action.product, quantity: qty }] };
+      return {
+        items: [...state.items, { product: action.product, quantity: qty }],
+      };
     }
     case "REMOVE":
-      return { items: state.items.filter((i) => i.product.id !== action.productId) };
+      return {
+        items: state.items.filter((i) => i.product.id !== action.productId),
+      };
     case "CLEAR":
       return { items: [] };
     case "SET_QTY":
       return {
         items: state.items.map((i) =>
-          i.product.id === action.productId ? { ...i, quantity: Math.max(1, action.quantity) } : i
+          i.product.id === action.productId
+            ? { ...i, quantity: Math.max(1, action.quantity) }
+            : i,
         ),
       };
     default:
@@ -56,19 +70,15 @@ export type CartContextType = {
 const CartContext = createContext<CartContextType | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(
-    reducer,
-    { items: [] },
-    (init) => {
-      if (typeof window !== "undefined") {
-        try {
-          const raw = localStorage.getItem("cart");
-          if (raw) return JSON.parse(raw) as State;
-        } catch {}
-      }
-      return init;
+  const [state, dispatch] = useReducer(reducer, { items: [] }, (init) => {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("cart");
+        if (raw) return JSON.parse(raw) as State;
+      } catch {}
     }
-  );
+    return init;
+  });
 
   useEffect(() => {
     try {
@@ -76,14 +86,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, [state]);
 
-  const value = useMemo<CartContextType>(() => ({
-    items: state.items,
-    add: (product, quantity) => dispatch({ type: "ADD", product, quantity }),
-    remove: (productId) => dispatch({ type: "REMOVE", productId }),
-    clear: () => dispatch({ type: "CLEAR" }),
-    setQty: (productId, quantity) => dispatch({ type: "SET_QTY", productId, quantity }),
-    subtotal: subtotal(state.items),
-  }), [state.items]);
+  const value = useMemo<CartContextType>(
+    () => ({
+      items: state.items,
+      add: (product, quantity) => dispatch({ type: "ADD", product, quantity }),
+      remove: (productId) => dispatch({ type: "REMOVE", productId }),
+      clear: () => dispatch({ type: "CLEAR" }),
+      setQty: (productId, quantity) =>
+        dispatch({ type: "SET_QTY", productId, quantity }),
+      subtotal: subtotal(state.items),
+    }),
+    [state.items],
+  );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

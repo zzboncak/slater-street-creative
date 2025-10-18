@@ -16,8 +16,11 @@ const geistMono = Geist_Mono({
 });
 
 const siteName = "Slater Street Candles";
-const siteDescription = "Hand-poured, premium candles. Natural wax, clean scents, fast shipping.";
-const baseUrl = new URL(process.env.SITE_URL || "https://slaterstreetcreative.com");
+const siteDescription =
+  "Hand-poured, premium candles. Natural wax, clean scents, fast shipping.";
+const baseUrl = new URL(
+  process.env.SITE_URL || "https://slaterstreetcreative.com",
+);
 
 export const metadata: Metadata = {
   metadataBase: baseUrl,
@@ -56,9 +59,7 @@ export default function RootLayout({
       >
         <CartProvider>
           <Header />
-          <main className="min-h-[calc(100vh-140px)]">
-            {children}
-          </main>
+          <main className="min-h-[calc(100vh-140px)]">{children}</main>
           <Footer />
         </CartProvider>
       </body>

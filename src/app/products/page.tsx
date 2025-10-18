@@ -11,10 +11,16 @@ export default async function ProductsPage() {
     // Only attempt DB fetch if a DATABASE_URL is configured at runtime
     if (process.env.DATABASE_URL) {
       const { prisma } = await import("@/lib/prisma");
-      const db: { id: string; name: string; description: string | null; priceCents: number; image: string | null }[] = await prisma.product.findMany({
-      where: { active: true },
-      include: { inventory: true },
-      orderBy: { name: "asc" },
+      const db: {
+        id: string;
+        name: string;
+        description: string | null;
+        priceCents: number;
+        image: string | null;
+      }[] = await prisma.product.findMany({
+        where: { active: true },
+        include: { inventory: true },
+        orderBy: { name: "asc" },
       });
       if (db.length) {
         list = db.map((p) => ({

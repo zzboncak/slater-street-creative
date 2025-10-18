@@ -9,7 +9,10 @@ import { cfImageUrl } from "@/lib/cloudflare-images";
 export const dynamic = "force-dynamic";
 
 function formatPrice(cents: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(cents / 100);
 }
 
 async function loadProduct(id: string): Promise<UIProduct | null> {
@@ -37,22 +40,35 @@ async function loadProduct(id: string): Promise<UIProduct | null> {
 }
 
 function JsonLd({ data }: { data: unknown }) {
-  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />;
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+    />
+  );
 }
 
-export async function generateMetadata(
-  { params }: { params: Promise<{ id: string }> }
-): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
   const { id } = await params;
   const product = await loadProduct(id);
-  if (!product) return { title: "Product not found", robots: { index: false, follow: false } };
+  if (!product)
+    return {
+      title: "Product not found",
+      robots: { index: false, follow: false },
+    };
 
   const title = product.name;
   const description = product.description || "Premium hand-poured candle.";
   const base = process.env.SITE_URL || "https://slaterstreetcreative.com";
   const canonical = `${base}/products/${product.id}`;
   const imageUrl = product.image
-    ? (/^https?:\/\//.test(product.image) ? product.image : cfImageUrl(product.image, "public"))
+    ? /^https?:\/\//.test(product.image)
+      ? product.image
+      : cfImageUrl(product.image, "public")
     : undefined;
 
   return {
@@ -75,7 +91,11 @@ export async function generateMetadata(
   };
 }
 
-export default async function ProductDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProductDetailsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const product = await loadProduct(id);
   if (!product) return notFound();
@@ -86,7 +106,11 @@ export default async function ProductDetailsPage({ params }: { params: Promise<{
     "@type": "Product",
     name: product.name,
     description: product.description || undefined,
-  image: product.image ? (/^https?:\/\//.test(product.image) ? product.image : cfImageUrl(product.image, "public")) : undefined,
+    image: product.image
+      ? /^https?:\/\//.test(product.image)
+        ? product.image
+        : cfImageUrl(product.image, "public")
+      : undefined,
     sku: product.id,
     offers: {
       "@type": "Offer",
@@ -101,8 +125,18 @@ export default async function ProductDetailsPage({ params }: { params: Promise<{
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Home", item: `${base}/` },
-      { "@type": "ListItem", position: 2, name: "Products", item: `${base}/products` },
-      { "@type": "ListItem", position: 3, name: product.name, item: `${base}/products/${product.id}` },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Products",
+        item: `${base}/products`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: product.name,
+        item: `${base}/products/${product.id}`,
+      },
     ],
   };
 
@@ -113,15 +147,17 @@ export default async function ProductDetailsPage({ params }: { params: Promise<{
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-black/10 dark:border-white/15">
         {(() => {
           const isAbs = /^https?:\/\//i.test(product.image);
-          const src = isAbs ? product.image : cfImageUrl(product.image, "public");
+          const src = isAbs
+            ? product.image
+            : cfImageUrl(product.image, "public");
           return (
             <Image
-          src={src}
-          alt={product.name}
-          fill
-          sizes="(min-width: 1024px) 600px, 100vw"
-          className="object-cover"
-        />
+              src={src}
+              alt={product.name}
+              fill
+              sizes="(min-width: 1024px) 600px, 100vw"
+              className="object-cover"
+            />
           );
         })()}
       </div>
@@ -129,7 +165,9 @@ export default async function ProductDetailsPage({ params }: { params: Promise<{
         <h1 className="text-2xl font-semibold">{product.name}</h1>
         <div className="text-xl font-bold">{formatPrice(product.price)}</div>
         {product.description && (
-          <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{product.description}</p>
+          <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+            {product.description}
+          </p>
         )}
         <div className="pt-2">
           <AddToCart product={product} />

@@ -5,7 +5,9 @@ const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 
 function hashPassword(password) {
-  return crypto.pbkdf2Sync(password, JWT_SECRET, 100_000, 32, "sha256").toString("hex");
+  return crypto
+    .pbkdf2Sync(password, JWT_SECRET, 100_000, 32, "sha256")
+    .toString("hex");
 }
 
 async function main() {
@@ -17,8 +19,13 @@ async function main() {
     console.log("Seeded admin user: 'admin' / 'admin'");
   } else {
     if (existing.role !== "ADMIN" || existing.passwordHash !== passwordHash) {
-      await prisma.user.update({ where: { email }, data: { role: "ADMIN", passwordHash } });
-      console.log("Updated existing admin to role ADMIN with default password.");
+      await prisma.user.update({
+        where: { email },
+        data: { role: "ADMIN", passwordHash },
+      });
+      console.log(
+        "Updated existing admin to role ADMIN with default password.",
+      );
     } else {
       console.log("Admin user already exists");
     }

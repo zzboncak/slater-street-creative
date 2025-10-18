@@ -5,7 +5,9 @@ const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 
 function hashPassword(password) {
-  return crypto.pbkdf2Sync(password, JWT_SECRET, 100_000, 32, "sha256").toString("hex");
+  return crypto
+    .pbkdf2Sync(password, JWT_SECRET, 100_000, 32, "sha256")
+    .toString("hex");
 }
 
 async function main() {

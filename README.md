@@ -18,26 +18,26 @@ Open http://localhost:3000 to view.
 
 ## Database (Prisma + Postgres)
 
-1) Install deps and init Prisma
+1. Install deps and init Prisma
 
 ```bash
 npm install prisma @prisma/client
 npx prisma init
 ```
 
-2) Set DATABASE_URL in `.env`
+2. Set DATABASE_URL in `.env`
 
 ```
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DBNAME?schema=public
 ```
 
-3) Migrate and generate client
+3. Migrate and generate client
 
 ```bash
 npx prisma migrate dev --name init
 ```
 
-4) Admin basic auth (optional)
+4. Admin basic auth (optional)
 
 Set in `.env` to protect `/admin`:
 
@@ -68,13 +68,13 @@ Then visit http://localhost:3000/admin
 
 ## Stripe integration (stub -> real)
 
-1) Install Stripe SDK:
+1. Install Stripe SDK:
 
 ```bash
 npm install stripe
 ```
 
-2) Add `.env.local`:
+2. Add `.env.local`:
 
 ```
 STRIPE_SECRET_KEY=sk_live_...
@@ -82,7 +82,7 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
 SITE_URL=http://localhost:3000
 ```
 
-3) Implement Checkout Session in `src/app/api/checkout/route.ts`:
+3. Implement Checkout Session in `src/app/api/checkout/route.ts`:
 
 ```ts
 // import Stripe from "stripe";
@@ -103,19 +103,19 @@ SITE_URL=http://localhost:3000
 // }
 ```
 
-4) Send cart to API from `src/app/cart/page.tsx`:
+4. Send cart to API from `src/app/cart/page.tsx`:
 
 ```ts
 await fetch("/api/checkout", {
-	method: "POST",
-	headers: { "Content-Type": "application/json" },
-	body: JSON.stringify({
-		items: items.map(({ product, quantity }) => ({
-			name: product.name,
-			amount: product.price,
-			quantity,
-		})),
-	}),
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    items: items.map(({ product, quantity }) => ({
+      name: product.name,
+      amount: product.price,
+      quantity,
+    })),
+  }),
 });
 ```
 
@@ -136,13 +136,13 @@ This repo includes a `docker-compose.yml` defining a Postgres 16 service and a h
 
 Steps:
 
-1) Optionally create `.env.local` with your connection string (the script defaults to this):
+1. Optionally create `.env.local` with your connection string (the script defaults to this):
 
 ```
 DATABASE_URL="postgresql://postgres:postgres@localhost:5433/slater?schema=public"
 ```
 
-2) Start dev with DB:
+2. Start dev with DB:
 
 ```bash
 npm run dev:db
@@ -159,9 +159,9 @@ npm run db:down # stop and remove containers
 
 Configure Cloudflare Images to host product photos.
 
-1) In Cloudflare dashboard, enable Images and create an API Token with Images:Edit.
+1. In Cloudflare dashboard, enable Images and create an API Token with Images:Edit.
 
-2) Add to `.env` (see `.env.example`):
+2. Add to `.env` (see `.env.example`):
 
 ```
 CF_ACCOUNT_ID=...
@@ -169,4 +169,4 @@ CF_IMAGES_TOKEN=...
 NEXT_PUBLIC_CF_IMAGES_BASE_URL=https://imagedelivery.net/<account_hash>
 ```
 
-3) In Admin → Products, use the uploader. It saves the returned image id to the product. Rendering uses Next/Image with domains allowed in `next.config.ts`.
+3. In Admin → Products, use the uploader. It saves the returned image id to the product. Rendering uses Next/Image with domains allowed in `next.config.ts`.

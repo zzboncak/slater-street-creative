@@ -6,7 +6,8 @@ export const CF_IMAGES = {
   accountId: process.env.CF_ACCOUNT_ID || "",
   token: process.env.CF_IMAGES_TOKEN || "",
   // Optional: custom base like https://imagedelivery.net/<account_hash>
-  base: process.env.NEXT_PUBLIC_CF_IMAGES_BASE_URL || "https://imagedelivery.net",
+  base:
+    process.env.NEXT_PUBLIC_CF_IMAGES_BASE_URL || "https://imagedelivery.net",
 };
 
 export const CF_VARIANT = process.env.NEXT_PUBLIC_CF_IMAGES_VARIANT || "public";
