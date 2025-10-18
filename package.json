@@ -8,7 +8,7 @@
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
     "db:seed": "node prisma/seed.js",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "format": "prettier --write ."
