@@ -5,11 +5,14 @@ type ProductWithInventory = {
   name: string;
   priceCents: number;
   active: boolean;
+  type: string;
+  scentProfile: string[];
   inventory: { quantity: number } | null;
 };
 
 // Client-side uploader for Cloudflare Images
 import CFImageField from "@/components/admin/ImageField";
+import { ProductType } from "@prisma/client";
 
 export default async function AdminProductsPage() {
   let products: ProductWithInventory[] = [];
@@ -39,6 +42,13 @@ export default async function AdminProductsPage() {
             className="border rounded px-2 py-1"
             required
           />
+          <select
+            name="type"
+            className="border rounded px-2 py-1"
+            defaultValue="CANDLE"
+          >
+            <option value="CANDLE">Candle</option>
+          </select>
           {/* Image: supports Cloudflare Images direct upload; stores returned id in hidden input */}
           <div className="sm:col-span-2 space-y-1">
             <label className="text-xs text-gray-600">
@@ -49,6 +59,11 @@ export default async function AdminProductsPage() {
           <textarea
             name="description"
             placeholder="Description"
+            className="border rounded px-2 py-1 sm:col-span-2"
+          />
+          <input
+            name="scentProfile"
+            placeholder="Scent Profile (comma-separated, e.g. 'citrus, vanilla, cedar')"
             className="border rounded px-2 py-1 sm:col-span-2"
           />
         </div>
@@ -101,8 +116,17 @@ async function createProduct(formData: FormData) {
   "use server";
   const name = String(formData.get("name") || "").trim();
   const priceCents = Number(formData.get("priceCents"));
+  const type = String(formData.get("type") || "CANDLE").trim();
   const description = String(formData.get("description") || "").trim() || null;
   const image = String(formData.get("image") || "").trim() || null;
+  const scentProfileStr = String(formData.get("scentProfile") || "").trim();
+  
+  // Parse scent profile from comma-separated string
+  const scentProfile = scentProfileStr
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
   if (!name || !Number.isFinite(priceCents)) return;
   if (!process.env.DATABASE_URL) return;
   const { prisma } = await import("@/lib/prisma");
@@ -110,8 +134,10 @@ async function createProduct(formData: FormData) {
     data: {
       name,
       priceCents,
+      type: type as ProductType,
       description,
       image,
+      scentProfile,
       inventory: { create: { quantity: 0 } },
     },
   });

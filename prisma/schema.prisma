@@ -14,15 +14,21 @@ enum Role {
   USER
 }
 
+enum ProductType {
+  CANDLE
+}
+
 model Product {
-  id          String     @id @default(cuid())
-  name        String
-  description String?
-  priceCents  Int        // price stored in cents
-  image       String?
-  active      Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id            String     @id @default(cuid())
+  name          String
+  description   String?
+  priceCents    Int        // price stored in cents
+  image         String?
+  type          ProductType @default(CANDLE)
+  scentProfile  String[]   // array of scent notes
+  active        Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
   inventory   Inventory?
 }
