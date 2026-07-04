@@ -43,4 +43,7 @@ next-env.d.ts
 # vscode
 .vscode/*
 
+# jetbrains
+.idea/
+
 .github/*
