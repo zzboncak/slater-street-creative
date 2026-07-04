@@ -119,6 +119,9 @@ export async function authorizeAdmin(): Promise<AuthorizeResult> {
   const payload = token ? verifyJwt(token) : null;
   if (!payload || !process.env.DATABASE_URL) return { ok: false, status: 401 };
 
+  // Prisma is imported lazily on purpose (not the legacy pattern in AGENTS.md):
+  // auth.ts is imported by lightweight/edge-adjacent modules, so we avoid
+  // pulling the Node-only Prisma client into their bundles unless we hit this path.
   const { prisma } = await import("@/lib/prisma");
   const user = await prisma.user.findUnique({
     where: { email: payload.email },
