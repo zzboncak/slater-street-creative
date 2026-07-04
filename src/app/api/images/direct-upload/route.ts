@@ -1,38 +1,15 @@
 import { NextResponse } from "next/server";
 import { CF_IMAGES } from "@/lib/cloudflare-images";
-import { cookies } from "next/headers";
-import { verifyJwt } from "@/lib/auth";
+import { authorizeAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST() {
-  // Admin auth guard
-  const jar = await cookies();
-  const token = jar.get("session")?.value;
-  const payload = token ? verifyJwt(token) : null;
-  if (!payload || !process.env.DATABASE_URL) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const { prisma } = await import("@/lib/prisma");
-  const user = await prisma.user.findUnique({
-    where: { email: payload.email },
-  });
-  if (!user || user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  if (payload.jti) {
-    const session = await prisma.session.findUnique({
-      where: { id: payload.jti },
-    });
-    const now = new Date();
-    if (
-      !session ||
-      session.userId !== user.id ||
-      session.revokedAt ||
-      session.expiresAt <= now
-    ) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  // Admin auth guard — preserve the 401 (no session) / 403 (not admin) split.
+  const auth = await authorizeAdmin();
+  if (!auth.ok) {
+    const error = auth.status === 403 ? "Forbidden" : "Unauthorized";
+    return NextResponse.json({ error }, { status: auth.status });
   }
 
   if (!CF_IMAGES.accountId || !CF_IMAGES.token) {

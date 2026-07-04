@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import type { User } from "@prisma/client";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
@@ -96,4 +98,63 @@ export async function clearSessionCookie() {
     secure: process.env.NODE_ENV === "production",
     maxAge: 0,
   });
+}
+
+type AuthorizeResult =
+  | { ok: true; user: User }
+  | { ok: false; status: 401 | 403 };
+
+/**
+ * Full server-side admin authorization check. Returns a discriminated result
+ * instead of throwing, so each caller decides how to react (redirect to login,
+ * return JSON, etc.). Fails closed: any missing/invalid step yields `ok: false`.
+ *
+ * - 401 = no usable session (missing/invalid JWT, or the DB session is
+ *   missing/revoked/expired/belongs to another user, or the DB is unreachable).
+ * - 403 = valid session but the user is not an ADMIN.
+ */
+export async function authorizeAdmin(): Promise<AuthorizeResult> {
+  const jar = await cookies();
+  const token = jar.get("session")?.value;
+  const payload = token ? verifyJwt(token) : null;
+  if (!payload || !process.env.DATABASE_URL) return { ok: false, status: 401 };
+
+  // Prisma is imported lazily on purpose (not the legacy pattern in AGENTS.md):
+  // auth.ts is imported by lightweight/edge-adjacent modules, so we avoid
+  // pulling the Node-only Prisma client into their bundles unless we hit this path.
+  const { prisma } = await import("@/lib/prisma");
+  const user = await prisma.user.findUnique({
+    where: { email: payload.email },
+  });
+  if (!user) return { ok: false, status: 401 };
+  if (user.role !== "ADMIN") return { ok: false, status: 403 };
+
+  // Session revocation is DB-backed by jti; reject anything not currently valid.
+  if (payload.jti) {
+    const session = await prisma.session.findUnique({
+      where: { id: payload.jti },
+    });
+    if (
+      !session ||
+      session.userId !== user.id ||
+      session.revokedAt ||
+      session.expiresAt <= new Date()
+    ) {
+      return { ok: false, status: 401 };
+    }
+  }
+
+  return { ok: true, user };
+}
+
+/**
+ * Admin gate for server actions and the admin layout: returns the ADMIN user
+ * on success, or redirects to the login page on any failure (never returns on
+ * the failure path). For route handlers that need to return a specific JSON
+ * status, call `authorizeAdmin()` directly instead.
+ */
+export async function requireAdmin(): Promise<User> {
+  const result = await authorizeAdmin();
+  if (!result.ok) redirect("/login?next=/admin");
+  return result.user;
 }
