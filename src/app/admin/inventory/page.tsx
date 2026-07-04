@@ -1,3 +1,5 @@
+import { requireAdmin } from "@/lib/auth";
+
 export const dynamic = "force-dynamic";
 
 type ProductWithInventory = {
@@ -43,10 +45,10 @@ export default async function AdminInventoryPage() {
 
 async function updateInventory(formData: FormData) {
   "use server";
+  await requireAdmin();
   const id = String(formData.get("id"));
   const quantity = Number(formData.get("quantity"));
   if (!Number.isFinite(quantity)) return;
-  if (!process.env.DATABASE_URL) return;
   const { prisma } = await import("@/lib/prisma");
   await prisma.inventory.upsert({
     where: { productId: id },

@@ -1,3 +1,5 @@
+import { requireAdmin } from "@/lib/auth";
+
 export const dynamic = "force-dynamic";
 type Coupon = {
   id: string;
@@ -117,6 +119,7 @@ export default async function AdminCouponsPage() {
 
 async function createCoupon(formData: FormData) {
   "use server";
+  await requireAdmin();
   const code = String(formData.get("code") || "")
     .trim()
     .toUpperCase();
@@ -135,15 +138,14 @@ async function createCoupon(formData: FormData) {
     validTo: validToStr ? new Date(validToStr) : null,
   };
   if (!code) return;
-  if (!process.env.DATABASE_URL) return;
   const { prisma } = await import("@/lib/prisma");
   await prisma.coupon.create({ data });
 }
 
 async function toggleActive(formData: FormData) {
   "use server";
+  await requireAdmin();
   const id = String(formData.get("id"));
-  if (!process.env.DATABASE_URL) return;
   const { prisma } = await import("@/lib/prisma");
   const c = await prisma.coupon.findUnique({ where: { id } });
   if (!c) return;
@@ -152,8 +154,8 @@ async function toggleActive(formData: FormData) {
 
 async function deleteCoupon(formData: FormData) {
   "use server";
+  await requireAdmin();
   const id = String(formData.get("id"));
-  if (!process.env.DATABASE_URL) return;
   const { prisma } = await import("@/lib/prisma");
   await prisma.coupon.delete({ where: { id } }).catch(() => {});
 }

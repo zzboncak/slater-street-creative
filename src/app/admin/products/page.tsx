@@ -13,6 +13,7 @@ type ProductWithInventory = {
 // Client-side uploader for Cloudflare Images
 import CFImageField from "@/components/admin/ImageField";
 import { ProductType } from "@prisma/client";
+import { requireAdmin } from "@/lib/auth";
 
 export default async function AdminProductsPage() {
   let products: ProductWithInventory[] = [];
@@ -114,13 +115,14 @@ export default async function AdminProductsPage() {
 
 async function createProduct(formData: FormData) {
   "use server";
+  await requireAdmin();
   const name = String(formData.get("name") || "").trim();
   const priceCents = Number(formData.get("priceCents"));
   const type = String(formData.get("type") || "CANDLE").trim();
   const description = String(formData.get("description") || "").trim() || null;
   const image = String(formData.get("image") || "").trim() || null;
   const scentProfileStr = String(formData.get("scentProfile") || "").trim();
-  
+
   // Parse scent profile from comma-separated string
   const scentProfile = scentProfileStr
     .split(",")
@@ -128,7 +130,6 @@ async function createProduct(formData: FormData) {
     .filter((s) => s.length > 0);
 
   if (!name || !Number.isFinite(priceCents)) return;
-  if (!process.env.DATABASE_URL) return;
   const { prisma } = await import("@/lib/prisma");
   await prisma.product.create({
     data: {
@@ -145,8 +146,8 @@ async function createProduct(formData: FormData) {
 
 async function toggleActive(formData: FormData) {
   "use server";
+  await requireAdmin();
   const id = String(formData.get("id"));
-  if (!process.env.DATABASE_URL) return;
   const { prisma } = await import("@/lib/prisma");
   const p = await prisma.product.findUnique({ where: { id } });
   if (!p) return;
@@ -155,8 +156,8 @@ async function toggleActive(formData: FormData) {
 
 async function deleteProduct(formData: FormData) {
   "use server";
+  await requireAdmin();
   const id = String(formData.get("id"));
-  if (!process.env.DATABASE_URL) return;
   const { prisma } = await import("@/lib/prisma");
   await prisma.product.delete({ where: { id } }).catch(() => {});
 }

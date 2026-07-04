@@ -45,7 +45,7 @@ There is no test suite yet. Before finishing any task, run: `npx tsc --noEmit &&
 
 See `AUDIT.md` for the full list. The ones that will bite you:
 
-1. **Admin server actions have no internal auth checks** — `src/middleware.ts` only checks that a `session` cookie _exists_ (no JWT/role verification until SSC-2). Any new mutation touching admin data must verify an ADMIN-role session inside the action itself.
+1. **Admin auth is enforced server-side, not by middleware.** `src/middleware.ts` only checks that a `session` cookie _exists_ (a UX redirect). Every admin server action and the admin layout call `await requireAdmin()` from `src/lib/auth.ts`; route handlers needing a JSON status call `authorizeAdmin()`. Any new admin mutation MUST call one of these as its first line.
 2. **Two product sources of truth**: `src/data/products.ts` (mock) vs the DB. The DB is canonical going forward. UI `Product` type (`price`, `tags`) differs from Prisma (`priceCents`, `scentProfile`).
 3. **`/api/checkout` is a stub** and there is no Order model yet.
 4. **Coupons and inventory are not enforced anywhere** — CRUD only.
@@ -57,7 +57,7 @@ See `AUDIT.md` for the full list. The ones that will bite you:
 
 - Never commit `.env*` files or print their values.
 - Re-price carts server-side from the DB at checkout; never trust client-supplied prices.
-- Validate all input server-side; check `role === "ADMIN"` inside actions/routes, not just middleware.
+- Validate all input server-side; enforce admin access with `requireAdmin()` / `authorizeAdmin()` inside actions/routes, not just middleware.
 - Auth code (`src/lib/auth.ts`) has known weaknesses (static-salt pbkdf2, dev-secret fallback) — fix only as part of a scoped task, and be aware changes may invalidate existing password hashes.
 
 ## Workflow

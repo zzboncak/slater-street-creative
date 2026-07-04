@@ -6,7 +6,7 @@ Snapshot audit after ~1 year untouched. TypeScript compiles clean (`tsc --noEmit
 
 **A1. ~~Duplicate, conflicting middleware.~~ Resolved (SSC-1).** Root `middleware.ts` deleted; `src/middleware.ts` is the single middleware and redirects `/admin` requests without a `session` cookie to `/login?next=…`. Basic Auth (`ADMIN_USER`/`ADMIN_PASS`) and its env-var fail-open are gone.
 
-**A2. Admin server actions have no auth checks of their own.** Middleware (post-SSC-1) only checks that a `session` cookie _exists_ — it can't verify the JWT at the edge. The admin server actions (create/delete products, coupons, inventory) must verify an ADMIN-role session server-side, always (SSC-2).
+**A2. ~~Admin server actions have no auth checks of their own.~~ Resolved (SSC-2).** `requireAdmin()` in `src/lib/auth.ts` (full JWT + ADMIN role + DB-session check) is called at the top of every admin server action and the admin layout; `/api/images/direct-upload` uses the shared `authorizeAdmin()`. Middleware presence-check remains a UX redirect only — authorization is enforced server-side in the action/route.
 
 **A3. `/api/customers` GET is unauthenticated.** Returns every customer's email and name to anyone. PII leak. POST also allows anonymous customer creation.
 
