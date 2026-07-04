@@ -37,16 +37,12 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DBNAME?schema=public
 npx prisma migrate dev --name init
 ```
 
-4. Admin basic auth (optional)
+4. Admin access
 
-Set in `.env` to protect `/admin`:
-
-```
-ADMIN_USER=admin
-ADMIN_PASS=change-me
-```
-
-Then visit http://localhost:3000/admin
+`/admin` requires a logged-in session with an `ADMIN`-role account — visiting
+it without one redirects to `/login`. Signup (`/signup`) creates a regular
+`USER`; the seed script (`npm run db:seed`) creates the admin account. Log in
+with those credentials, then visit http://localhost:3000/admin
 
 ## Project Structure
 
@@ -63,7 +59,7 @@ Then visit http://localhost:3000/admin
 - `src/app/(auth)/*` – Signup/Login pages
 - `prisma/schema.prisma` – DB schema
 - `src/lib/prisma.ts` – Prisma client singleton
-- `src/middleware.ts` – Basic auth for `/admin`
+- `src/middleware.ts` – Session-cookie gate for `/admin` (redirects to `/login`)
 - `src/app/admin/*` – Admin pages (products, inventory, coupons)
 
 ## Stripe integration (stub -> real)
