@@ -39,9 +39,10 @@ npx prisma migrate dev --name init
 
 4. Admin access
 
-`/admin` requires a logged-in session — visiting it without one redirects to
-`/login`. Create an account via `/signup` (or the seed script), then visit
-http://localhost:3000/admin
+`/admin` requires a logged-in session with an `ADMIN`-role account — visiting
+it without one redirects to `/login`. Signup (`/signup`) creates a regular
+`USER`; the seed script (`npm run db:seed`) creates the admin account. Log in
+with those credentials, then visit http://localhost:3000/admin
 
 ## Project Structure
 
