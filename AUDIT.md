@@ -8,7 +8,7 @@ Snapshot audit after ~1 year untouched. TypeScript compiles clean (`tsc --noEmit
 
 **A2. ~~Admin server actions have no auth checks of their own.~~ Resolved (SSC-2).** `requireAdmin()` in `src/lib/auth.ts` (full JWT + ADMIN role + DB-session check) is called at the top of every admin server action and the admin layout; `/api/images/direct-upload` uses the shared `authorizeAdmin()`. Middleware presence-check remains a UX redirect only — authorization is enforced server-side in the action/route.
 
-**A3. `/api/customers` GET is unauthenticated.** Returns every customer's email and name to anyone. PII leak. POST also allows anonymous customer creation.
+**A3. ~~`/api/customers` GET is unauthenticated.~~ Resolved (SSC-3).** The route (`src/app/api/customers/route.ts`) was deleted — nothing consumed it, and customer records are created via the signup flow. The unauthenticated GET, anonymous POST, and in-memory fallback store are all gone.
 
 **A4. Password hashing uses `JWT_SECRET` as a static salt.** In `src/lib/auth.ts`, pbkdf2 salts every password with the same value — identical passwords produce identical hashes, and rotating `JWT_SECRET` breaks every login. Also falls back to `"dev-secret-change-me"` if unset (works silently in prod). Replace with per-user salt (or bcrypt/argon2) and require the secret.
 

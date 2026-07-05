@@ -6,7 +6,7 @@ A Next.js e-commerce starter for a candle shop. Includes:
 - About page
 - Products grid with mock data
 - Cart with add/remove/quantity and subtotal
-- API stubs for customers and checkout (Stripe-ready)
+- Checkout API stub (Stripe-ready)
 
 ## Getting Started
 
@@ -54,7 +54,6 @@ with those credentials, then visit http://localhost:3000/admin
 - `src/context/CartContext.tsx` – Cart state provider
 - `src/data/products.ts` – Mock products
 - `src/app/api/checkout/route.ts` – Checkout API (Stripe stub)
-- `src/app/api/customers/route.ts` – Customers API (in-memory stub)
 - `src/app/api/auth/*` – Signup/Login/Logout APIs (email/password with hashed storage + JWT cookie)
 - `src/app/(auth)/*` – Signup/Login pages
 - `prisma/schema.prisma` – DB schema
@@ -117,7 +116,6 @@ await fetch("/api/checkout", {
 
 ## Future backend
 
-- Replace mock `src/app/api/customers/route.ts` with a database (Prisma + Postgres)
 - Admin pages for products and orders
 - Webhooks endpoint `/api/stripe/webhook` to verify payments and fulfill orders
 
