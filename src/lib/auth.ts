@@ -3,8 +3,30 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { User } from "@prisma/client";
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
+// JWT_SECRET signs session tokens only (password hashing uses per-user salts).
+// Required in production; a dev-only fallback is allowed with a loud warning.
+function resolveJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (secret) return secret;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "JWT_SECRET is not set. It is required in production to sign session tokens.",
+    );
+  }
+  console.warn(
+    "\x1b[33m[auth] JWT_SECRET is not set — using an insecure development fallback. Set JWT_SECRET before deploying.\x1b[0m",
+  );
+  return "dev-secret-change-me";
+}
+
+const JWT_SECRET = resolveJwtSecret();
 export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
+
+// Password hashing: pbkdf2 with a per-user random salt, stored as `salt:hash`.
+const PBKDF2_ITERATIONS = 100_000;
+const PBKDF2_KEYLEN = 32;
+const PBKDF2_DIGEST = "sha256";
+const SALT_BYTES = 16;
 
 type JwtPayload = {
   sub: string;
@@ -15,14 +37,25 @@ type JwtPayload = {
 };
 
 export function hashPassword(password: string) {
-  return crypto
-    .pbkdf2Sync(password, JWT_SECRET, 100_000, 32, "sha256")
+  const salt = crypto.randomBytes(SALT_BYTES).toString("hex");
+  const hash = crypto
+    .pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, PBKDF2_KEYLEN, PBKDF2_DIGEST)
     .toString("hex");
+  return `${salt}:${hash}`;
 }
 
-export function verifyPassword(password: string, hash: string) {
-  const h = hashPassword(password);
-  return crypto.timingSafeEqual(Buffer.from(h), Buffer.from(hash));
+export function verifyPassword(password: string, stored: string) {
+  const [salt, hash] = String(stored).split(":");
+  // Reject malformed or legacy (pre-salt) hashes rather than throwing.
+  if (!salt || !hash) return false;
+  const computed = crypto
+    .pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, PBKDF2_KEYLEN, PBKDF2_DIGEST)
+    .toString("hex");
+  const computedBuf = Buffer.from(computed, "hex");
+  const storedBuf = Buffer.from(hash, "hex");
+  // timingSafeEqual throws on length mismatch; guard keeps it timing-safe.
+  if (computedBuf.length !== storedBuf.length) return false;
+  return crypto.timingSafeEqual(computedBuf, storedBuf);
 }
 
 function base64url(input: Buffer | string) {

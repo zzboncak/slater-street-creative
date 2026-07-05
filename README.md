@@ -25,10 +25,15 @@ npm install prisma @prisma/client
 npx prisma init
 ```
 
-2. Set DATABASE_URL in `.env`
+2. Set environment variables in `.env`
 
 ```
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DBNAME?schema=public
+# Signs session tokens. REQUIRED for production builds and at runtime — the app
+# throws if unset when NODE_ENV=production (including during `npm run build`).
+# In development an insecure fallback is used with a warning.
+# Generate one with: openssl rand -hex 32
+JWT_SECRET=your_long_random_secret_here
 ```
 
 3. Migrate and generate client

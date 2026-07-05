@@ -58,7 +58,7 @@ See `AUDIT.md` for the full list. The ones that will bite you:
 - Never commit `.env*` files or print their values.
 - Re-price carts server-side from the DB at checkout; never trust client-supplied prices.
 - Validate all input server-side; enforce admin access with `requireAdmin()` / `authorizeAdmin()` inside actions/routes, not just middleware.
-- Auth code (`src/lib/auth.ts`) has known weaknesses (static-salt pbkdf2, dev-secret fallback) — fix only as part of a scoped task, and be aware changes may invalidate existing password hashes.
+- Passwords are pbkdf2 with a per-user random salt, stored as `salt:hash` in `User.passwordHash`. `JWT_SECRET` signs session tokens only and is required in production (the app throws at startup if unset; dev uses a warned fallback). Changing the hashing scheme invalidates existing password hashes — re-seed dev accounts.
 
 ## Workflow
 
