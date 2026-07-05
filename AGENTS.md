@@ -27,7 +27,7 @@ There is no test suite yet. Before finishing any task, run: `npx tsc --noEmit &&
 ## Layout
 
 - `src/app/` — App Router pages. Public: `/`, `/about`, `/candles`, `/products`, `/cart`, `/contact`. Auth pages in `(auth)/`. Admin in `admin/`.
-- `src/app/api/` — route handlers (auth, checkout, customers, image upload).
+- `src/app/api/` — route handlers (auth, checkout, image upload).
 - Admin mutations are inline server actions inside the admin `page.tsx` files.
 - `src/lib/auth.ts` — hand-rolled JWT + pbkdf2. `src/lib/prisma.ts` — client singleton.
 - `src/context/CartContext.tsx` — client-side cart, persisted to localStorage.
