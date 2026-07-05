@@ -10,7 +10,7 @@ Snapshot audit after ~1 year untouched. TypeScript compiles clean (`tsc --noEmit
 
 **A3. ~~`/api/customers` GET is unauthenticated.~~ Resolved (SSC-3).** The route (`src/app/api/customers/route.ts`) was deleted — nothing consumed it, and customer records are created via the signup flow. The unauthenticated GET, anonymous POST, and in-memory fallback store are all gone.
 
-**A4. Password hashing uses `JWT_SECRET` as a static salt.** In `src/lib/auth.ts`, pbkdf2 salts every password with the same value — identical passwords produce identical hashes, and rotating `JWT_SECRET` breaks every login. Also falls back to `"dev-secret-change-me"` if unset (works silently in prod). Replace with per-user salt (or bcrypt/argon2) and require the secret.
+**A4. ~~Password hashing uses `JWT_SECRET` as a static salt.~~ Resolved (SSC-4).** `hashPassword` now uses a per-user random salt (pbkdf2, stored as `salt:hash`); password hashing no longer touches `JWT_SECRET`. The secret signs session tokens only and is required in production (throws at startup if unset; dev-only fallback with a loud warning). `verifyPassword` remains timing-safe and rejects legacy/malformed hashes.
 
 **A5. `verifyJwt` can crash the request.** `crypto.timingSafeEqual` throws when buffer lengths differ, so a malformed session cookie causes a 500 instead of returning null. Wrap in try/catch.
 
