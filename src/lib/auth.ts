@@ -45,7 +45,7 @@ export function hashPassword(password: string) {
 }
 
 export function verifyPassword(password: string, stored: string) {
-  const [salt, hash] = stored.split(":");
+  const [salt, hash] = String(stored).split(":");
   // Reject malformed or legacy (pre-salt) hashes rather than throwing.
   if (!salt || !hash) return false;
   const computed = crypto
