@@ -1,5 +1,5 @@
 import "server-only";
-import type { Product as PrismaProduct } from "@prisma/client";
+import type { Product as PrismaProduct, ProductType } from "@prisma/client";
 import type { Product } from "@/types";
 import { prisma } from "@/lib/prisma";
 
@@ -17,9 +17,11 @@ function toUIProduct(p: PrismaProduct): Product {
   };
 }
 
-export async function getActiveProducts(): Promise<Product[]> {
+export async function getActiveProducts(
+  type?: ProductType,
+): Promise<Product[]> {
   const rows = await prisma.product.findMany({
-    where: { active: true },
+    where: { active: true, ...(type ? { type } : {}) },
     orderBy: { name: "asc" },
   });
   return rows.map(toUIProduct);

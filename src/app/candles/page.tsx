@@ -3,7 +3,7 @@ import { getActiveProducts } from "@/lib/products";
 export const dynamic = "force-dynamic";
 
 export default async function CandlesPage() {
-  const products = await getActiveProducts();
+  const products = await getActiveProducts("CANDLE");
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-3xl">

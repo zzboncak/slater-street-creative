@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { prisma } from "@/lib/prisma";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const site = process.env.SITE_URL || "https://slaterstreetcreative.com";
@@ -24,7 +25,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   try {
-    const { prisma } = await import("@/lib/prisma");
     const products = await prisma.product.findMany({
       where: { active: true },
       select: { id: true, updatedAt: true },

@@ -16,7 +16,7 @@ Snapshot audit after ~1 year untouched. TypeScript compiles clean (`tsc --noEmit
 
 ## Medium severity
 
-**B1. Two sources of truth for products.** `src/data/products.ts` (mock) and the Prisma `Product` model coexist; `/products` merges them at runtime. Two incompatible `Product` types: `src/types` uses `price`/`tags`, Prisma uses `priceCents`/`scentProfile`. Pick the DB, delete the mocks, derive UI types from Prisma.
+**B1. ~~Two sources of truth for products.~~ Partially resolved (SSC-6a).** The mock (`src/data/products.ts`) is deleted; all storefront pages read the DB via `src/lib/products.ts`, and the UI `Product` type is derived from Prisma (`priceCents`/`scentProfile`, no `as unknown as`). Still open: the cart persists full product objects with prices in localStorage — switching to `productId`+`quantity` with server-side re-pricing is SSC-6b (see B4).
 
 **B2. Checkout is a stub; no Order model.** `/api/checkout` returns a fake thank-you URL. The schema has no Order/OrderItem — nothing can be recorded, priced, or fulfilled. This is the biggest functional gap vs. the "replace Square" goal.
 
