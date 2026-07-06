@@ -29,7 +29,7 @@ Snapshot audit after ~1 year untouched. TypeScript compiles clean (`tsc --noEmit
 ## Low severity / hygiene
 
 - **C1.** ~~Three seed files (`seed.js`, `seed.cjs`, `seed.ts`).~~ Resolved (SSC-7). One `prisma/seed.ts` (run via `tsx`) remains; it imports the real `hashPassword` from `src/lib/auth` (no duplicated crypto) and seeds admin + catalog + a test coupon.
-- **C2.** `if (!process.env.DATABASE_URL)` guards + lazy `import("@/lib/prisma")` scattered through routes/pages — legacy from the mock-data era; noise once DB is required.
+- **C2.** ~~`if (!process.env.DATABASE_URL)` guards + lazy `import("@/lib/prisma")` scattered through routes/pages.~~ Resolved (SSC-8). All removed in favor of a static `import { prisma } from "@/lib/prisma"`; `src/lib/prisma.ts` throws a clear error at startup if `DATABASE_URL` is unset (now required, including at build).
 - **C3.** `as unknown as X` casts in admin/candles pages instead of Prisma-generated types.
 - **C4.** `eslint-config-next` pinned at 15.4.6 vs `next` ^15.5.5 (minor drift). Dependencies overall are a year old.
 - **C5.** README's Stripe section and `.github/copilot-instructions.md` roadmap are partly aspirational — they describe things that don't exist yet.

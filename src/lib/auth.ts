@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { User } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 // JWT_SECRET signs session tokens only (password hashing uses per-user salts).
 // Required in production; a dev-only fallback is allowed with a loud warning.
@@ -165,12 +166,8 @@ export async function authorizeAdmin(): Promise<AuthorizeResult> {
   const jar = await cookies();
   const token = jar.get("session")?.value;
   const payload = token ? verifyJwt(token) : null;
-  if (!payload || !process.env.DATABASE_URL) return { ok: false, status: 401 };
+  if (!payload) return { ok: false, status: 401 };
 
-  // Prisma is imported lazily on purpose (not the legacy pattern in AGENTS.md):
-  // auth.ts is imported by lightweight/edge-adjacent modules, so we avoid
-  // pulling the Node-only Prisma client into their bundles unless we hit this path.
-  const { prisma } = await import("@/lib/prisma");
   const user = await prisma.user.findUnique({
     where: { email: payload.email },
   });

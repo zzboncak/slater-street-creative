@@ -49,7 +49,7 @@ See `AUDIT.md` for the full list. The ones that will bite you:
 2. **Cart still trusts client-side prices.** Products now come only from the DB — the mock is gone and the UI `Product` type is derived from Prisma (`priceCents`/`scentProfile`), read via `src/lib/products.ts` (SSC-6a). The remaining gap: the cart persists full product snapshots (incl. price) in localStorage; storing `productId`+`quantity` and re-pricing server-side is SSC-6b (AUDIT B1/B4).
 3. **`/api/checkout` is a stub** and there is no Order model yet.
 4. **Coupons and inventory are not enforced anywhere** — CRUD only.
-5. `if (!process.env.DATABASE_URL)` guards and lazy prisma imports are legacy; don't copy the pattern into new code.
+5. **`DATABASE_URL` is required.** `src/lib/prisma.ts` throws at startup if it's unset (including during `next build`). Import the client statically — `import { prisma } from "@/lib/prisma"` — everywhere; the old `if (!process.env.DATABASE_URL)` guards and lazy `await import("@/lib/prisma")` are gone (SSC-8).
 6. `.gitignore` ignores `.github/*` — adding CI workflows requires a gitignore exception.
 7. One seed file: `prisma/seed.ts`, run via `tsx` (`npm run db:seed`). It imports the real `hashPassword` from `src/lib/auth` and seeds the ADMIN user, the candle catalog + inventory, and a test coupon.
 

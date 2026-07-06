@@ -14,16 +14,13 @@ type ProductWithInventory = {
 import CFImageField from "@/components/admin/ImageField";
 import { ProductType } from "@prisma/client";
 import { requireAdmin } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export default async function AdminProductsPage() {
-  let products: ProductWithInventory[] = [];
-  if (process.env.DATABASE_URL) {
-    const { prisma } = await import("@/lib/prisma");
-    products = (await prisma.product.findMany({
-      orderBy: { createdAt: "desc" },
-      include: { inventory: true },
-    })) as unknown as ProductWithInventory[];
-  }
+  const products = (await prisma.product.findMany({
+    orderBy: { createdAt: "desc" },
+    include: { inventory: true },
+  })) as unknown as ProductWithInventory[];
 
   return (
     <div className="space-y-6">
@@ -130,7 +127,6 @@ async function createProduct(formData: FormData) {
     .filter((s) => s.length > 0);
 
   if (!name || !Number.isFinite(priceCents)) return;
-  const { prisma } = await import("@/lib/prisma");
   await prisma.product.create({
     data: {
       name,
@@ -148,7 +144,6 @@ async function toggleActive(formData: FormData) {
   "use server";
   await requireAdmin();
   const id = String(formData.get("id"));
-  const { prisma } = await import("@/lib/prisma");
   const p = await prisma.product.findUnique({ where: { id } });
   if (!p) return;
   await prisma.product.update({ where: { id }, data: { active: !p.active } });
@@ -158,6 +153,5 @@ async function deleteProduct(formData: FormData) {
   "use server";
   await requireAdmin();
   const id = String(formData.get("id"));
-  const { prisma } = await import("@/lib/prisma");
   await prisma.product.delete({ where: { id } }).catch(() => {});
 }

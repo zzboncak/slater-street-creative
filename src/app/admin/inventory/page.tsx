@@ -1,4 +1,5 @@
 import { requireAdmin } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -9,14 +10,10 @@ type ProductWithInventory = {
 };
 
 export default async function AdminInventoryPage() {
-  let products: ProductWithInventory[] = [];
-  if (process.env.DATABASE_URL) {
-    const { prisma } = await import("@/lib/prisma");
-    products = (await prisma.product.findMany({
-      include: { inventory: true },
-      orderBy: { name: "asc" },
-    })) as unknown as ProductWithInventory[];
-  }
+  const products = (await prisma.product.findMany({
+    include: { inventory: true },
+    orderBy: { name: "asc" },
+  })) as unknown as ProductWithInventory[];
   return (
     <div className="space-y-6">
       <h2 className="text-lg font-medium">Adjust inventory</h2>
@@ -49,7 +46,6 @@ async function updateInventory(formData: FormData) {
   const id = String(formData.get("id"));
   const quantity = Number(formData.get("quantity"));
   if (!Number.isFinite(quantity)) return;
-  const { prisma } = await import("@/lib/prisma");
   await prisma.inventory.upsert({
     where: { productId: id },
     update: { quantity },
