@@ -53,6 +53,7 @@ See `AUDIT.md` for the full list. The ones that will bite you:
 5. **`DATABASE_URL` is required.** `src/lib/prisma.ts` throws at startup if it's unset (including during `next build`). Import the client statically — `import { prisma } from "@/lib/prisma"` — everywhere; the old `if (!process.env.DATABASE_URL)` guards and lazy `await import("@/lib/prisma")` are gone (SSC-8).
 6. `.gitignore` ignores `.github/*` **except** `.github/workflows/` (exception in place) — CI workflows are committable; other `.github` files (e.g. copilot instructions) stay ignored.
 7. One seed file: `prisma/seed.ts`, run via `tsx` (`npm run db:seed`). It imports the real `hashPassword` from `src/lib/auth` and seeds the ADMIN user, the candle catalog + inventory, and a test coupon.
+8. **After changing dependencies, regenerate the lockfile cleanly** (`rm -rf node_modules package-lock.json && npm install`) and confirm `npm ci` passes. An incremental `npm install` on macOS drops Linux-only optional deps (`@emnapi/*`) from the lock, which makes CI's `npm ci` fail on the Linux runner.
 
 ## Security rules
 
