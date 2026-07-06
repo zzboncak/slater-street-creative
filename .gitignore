@@ -46,4 +46,7 @@ next-env.d.ts
 # jetbrains
 .idea/
 
+# Ignore workspace-specific GitHub files (e.g. copilot instructions) but keep
+# CI workflows committable.
 .github/*
+!.github/workflows/

@@ -19,10 +19,11 @@ npm run db:seed    # seed database (runs prisma/seed.ts via tsx)
 npm run lint       # ESLint
 npx tsc --noEmit   # typecheck
 npm run format     # Prettier
+npm test           # Vitest unit tests (run once)
 npm run build      # prisma generate + next build
 ```
 
-There is no test suite yet. Before finishing any task, run: `npx tsc --noEmit && npm run lint && npm run format`.
+Before finishing any task, run: `npx tsc --noEmit && npm run lint && npm run format && npm test`. CI (`.github/workflows/ci.yml`) runs typecheck + lint + test on pushes to `main` and every PR.
 
 ## Layout
 
@@ -46,11 +47,11 @@ There is no test suite yet. Before finishing any task, run: `npx tsc --noEmit &&
 See `AUDIT.md` for the full list. The ones that will bite you:
 
 1. **Admin auth is enforced server-side, not by middleware.** `src/middleware.ts` only checks that a `session` cookie _exists_ (a UX redirect). Every admin server action and the admin layout call `await requireAdmin()` from `src/lib/auth.ts`; route handlers needing a JSON status call `authorizeAdmin()`. Any new admin mutation MUST call one of these as its first line.
-2. **Cart still trusts client-side prices.** Products now come only from the DB — the mock is gone and the UI `Product` type is derived from Prisma (`priceCents`/`scentProfile`), read via `src/lib/products.ts` (SSC-6a). The remaining gap: the cart persists full product snapshots (incl. price) in localStorage; storing `productId`+`quantity` and re-pricing server-side is SSC-6b (AUDIT B1/B4).
+2. **Products/cart read from the DB.** The mock is gone; the UI `Product` type is derived from Prisma (`priceCents`/`scentProfile`) via `src/lib/products.ts` (SSC-6a). The cart persists only `{ productId, quantity }` and re-prices via `POST /api/cart` — no client-side prices (SSC-6b). Remaining: authoritative re-pricing at **checkout** is still a stub (SSC-12 / AUDIT B4).
 3. **`/api/checkout` is a stub** and there is no Order model yet.
 4. **Coupons and inventory are not enforced anywhere** — CRUD only.
 5. **`DATABASE_URL` is required.** `src/lib/prisma.ts` throws at startup if it's unset (including during `next build`). Import the client statically — `import { prisma } from "@/lib/prisma"` — everywhere; the old `if (!process.env.DATABASE_URL)` guards and lazy `await import("@/lib/prisma")` are gone (SSC-8).
-6. `.gitignore` ignores `.github/*` — adding CI workflows requires a gitignore exception.
+6. `.gitignore` ignores `.github/*` **except** `.github/workflows/` (exception in place) — CI workflows are committable; other `.github` files (e.g. copilot instructions) stay ignored.
 7. One seed file: `prisma/seed.ts`, run via `tsx` (`npm run db:seed`). It imports the real `hashPassword` from `src/lib/auth` and seeds the ADMIN user, the candle catalog + inventory, and a test coupon.
 
 ## Security rules

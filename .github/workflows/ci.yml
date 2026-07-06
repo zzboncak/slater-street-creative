@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      # Prisma reads env("DATABASE_URL") from the schema at generate time, and
+      # some imported modules require it (src/lib/prisma.ts throws without it).
+      # A dummy is fine: CI runs no real database — the unit tests are pure and
+      # never open a connection.
+      DATABASE_URL: postgresql://test:test@localhost:5432/test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm test
