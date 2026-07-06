@@ -53,47 +53,154 @@ async function main() {
   // Default catalog so the store is never empty in dev. Stable slug ids keep
   // /products/<id> URLs consistent. Idempotent: re-running refreshes fields and
   // leaves existing inventory untouched.
+  //
+  // Images are null for now (graceful "Photo coming soon" placeholder in the UI)
+  // until real product photography is uploaded via Cloudflare Images.
+  // priceCents is a uniform $15.00 placeholder pending real per-candle pricing.
+  const PLACEHOLDER_PRICE_CENTS = 1500;
+  const DEFAULT_STOCK = 25;
   const catalog = [
     {
-      id: "classic-vanilla",
-      name: "Classic Vanilla",
-      description: "A warm, comforting vanilla scent for any room.",
-      priceCents: 1800,
-      image:
-        "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1200&auto=format&fit=crop&q=60",
-      scentProfile: ["vanilla", "warm"],
-      quantity: 25,
+      id: "the-garden",
+      name: "The Garden",
+      scentProfile: ["tomato leaf", "fresh basil", "cucumber"],
     },
     {
-      id: "lavender-fields",
-      name: "Lavender Fields",
-      description: "Relaxing lavender aroma, perfect for evenings.",
-      priceCents: 2000,
-      image:
-        "https://images.unsplash.com/photo-1503863937795-62954a3c0f05?w=1200&auto=format&fit=crop&q=60",
-      scentProfile: ["lavender", "floral"],
-      quantity: 25,
+      id: "the-meadow",
+      name: "The Meadow",
+      scentProfile: ["cut grass", "fresh water"],
     },
     {
-      id: "citrus-breeze",
-      name: "Citrus Breeze",
-      description: "Bright citrus notes to freshen your space.",
-      priceCents: 1900,
-      image:
-        "https://images.unsplash.com/photo-1505575989282-9576e7b91f0d?w=1200&auto=format&fit=crop&q=60",
-      scentProfile: ["citrus", "fresh"],
-      quantity: 25,
+      id: "the-patio",
+      name: "The Patio",
+      scentProfile: ["whiskey", "garden mint"],
+    },
+    {
+      id: "the-seaside",
+      name: "The Seaside",
+      scentProfile: ["sea minerals", "ozone", "coconut water"],
+    },
+    {
+      id: "the-harbor",
+      name: "The Harbor",
+      scentProfile: ["dry gin", "cypress", "fresh water"],
+    },
+    {
+      id: "the-grove",
+      name: "The Grove",
+      scentProfile: ["oranges", "lemon peel", "agave"],
+    },
+    {
+      id: "the-treehouse",
+      name: "The Treehouse",
+      scentProfile: ["lemon verbena", "smoked oud"],
+    },
+    {
+      id: "the-lake",
+      name: "The Lake",
+      scentProfile: ["fresh pine", "rain water"],
+    },
+    {
+      id: "the-fireside",
+      name: "The Fireside",
+      scentProfile: ["smoked cedar", "amber", "vanilla"],
+    },
+    {
+      id: "the-woods",
+      name: "The Woods",
+      scentProfile: ["sandalwood", "cedar", "leather"],
+    },
+    {
+      id: "the-library",
+      name: "The Library",
+      scentProfile: ["saffron", "cedarwood", "leather"],
+    },
+    {
+      id: "the-forest",
+      name: "The Forest",
+      scentProfile: ["fraser fir", "amber", "cedar"],
+    },
+    {
+      id: "the-market",
+      name: "The Market",
+      scentProfile: ["peppercorn", "coriander", "chamomile"],
+    },
+    {
+      id: "the-cabin",
+      name: "The Cabin",
+      scentProfile: ["sandalwood", "palo santo", "cedar"],
+    },
+    {
+      id: "the-lodge",
+      name: "The Lodge",
+      scentProfile: ["pine", "moss", "cypress"],
+    },
+    {
+      id: "the-trail",
+      name: "The Trail",
+      scentProfile: ["fallen leaves", "palo santo", "sandalwood"],
+    },
+    {
+      id: "the-north",
+      name: "The North",
+      scentProfile: ["apple", "evergreen", "cinnamon"],
+    },
+    {
+      id: "the-hearth",
+      name: "The Hearth",
+      scentProfile: ["sweet tobacco", "smoked oud"],
+    },
+    {
+      id: "the-cafe",
+      name: "The Café",
+      scentProfile: ["coffee", "cinnamon", "toasted caramel"],
+    },
+    {
+      id: "the-pumpkin-patch",
+      name: "The Pumpkin Patch",
+      scentProfile: ["pumpkin", "clove"],
+    },
+    {
+      id: "the-lemonade-stand",
+      name: "The Lemonade Stand",
+      scentProfile: ["lemon", "spearmint"],
+    },
+    {
+      id: "the-christmas-tree",
+      name: "The Christmas Tree",
+      scentProfile: ["fraser fir", "white birch", "pine", "blue spruce"],
+    },
+    {
+      id: "the-chapel",
+      name: "The Chapel",
+      scentProfile: ["blue spruce", "spun cotton", "oakmoss"],
+    },
+    {
+      id: "the-haven",
+      name: "The Haven",
+      scentProfile: ["smoked sage", "cypress", "oakmoss", "amber"],
+    },
+    {
+      id: "the-sunroom",
+      name: "The Sunroom",
+      scentProfile: ["peppercorn", "juniper", "olive leaf", "bergamot"],
     },
   ];
+
+  // Remove the earlier placeholder candles this catalog replaces (cascade drops
+  // their inventory). Safe no-op once they're gone.
+  await prisma.product.deleteMany({
+    where: {
+      id: { in: ["classic-vanilla", "lavender-fields", "citrus-breeze"] },
+    },
+  });
 
   for (const c of catalog) {
     await prisma.product.upsert({
       where: { id: c.id },
       update: {
         name: c.name,
-        description: c.description,
-        priceCents: c.priceCents,
-        image: c.image,
+        priceCents: PLACEHOLDER_PRICE_CENTS,
         scentProfile: c.scentProfile,
         type: "CANDLE",
         active: true,
@@ -101,13 +208,12 @@ async function main() {
       create: {
         id: c.id,
         name: c.name,
-        description: c.description,
-        priceCents: c.priceCents,
-        image: c.image,
+        priceCents: PLACEHOLDER_PRICE_CENTS,
+        image: null,
         scentProfile: c.scentProfile,
         type: "CANDLE",
         active: true,
-        inventory: { create: { quantity: c.quantity } },
+        inventory: { create: { quantity: DEFAULT_STOCK } },
       },
     });
   }

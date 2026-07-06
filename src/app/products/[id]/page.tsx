@@ -3,7 +3,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getProductById } from "@/lib/products";
 import AddToCart from "@/components/AddToCart";
-import { cfImageUrl } from "@/lib/cloudflare-images";
+import {
+  productImageUrl,
+  PRODUCT_IMAGE_PLACEHOLDER,
+} from "@/lib/cloudflare-images";
 
 export const dynamic = "force-dynamic";
 
@@ -40,11 +43,8 @@ export async function generateMetadata({
   const description = product.description || "Premium hand-poured candle.";
   const base = process.env.SITE_URL || "https://slaterstreetcreative.com";
   const canonical = `${base}/products/${product.id}`;
-  const imageUrl = product.image
-    ? /^https?:\/\//.test(product.image)
-      ? product.image
-      : cfImageUrl(product.image, "public")
-    : undefined;
+  // Social/OG image: the real photo or omitted — never the "coming soon" tile.
+  const imageUrl = productImageUrl(product.image) ?? undefined;
 
   return {
     title,
@@ -81,11 +81,7 @@ export default async function ProductDetailsPage({
     "@type": "Product",
     name: product.name,
     description: product.description || undefined,
-    image: product.image
-      ? /^https?:\/\//.test(product.image)
-        ? product.image
-        : cfImageUrl(product.image, "public")
-      : undefined,
+    image: productImageUrl(product.image) ?? undefined,
     sku: product.id,
     offers: {
       "@type": "Offer",
@@ -120,21 +116,13 @@ export default async function ProductDetailsPage({
       <JsonLd data={productLd} />
       <JsonLd data={breadcrumbsLd} />
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-black/10 dark:border-white/15">
-        {(() => {
-          const isAbs = /^https?:\/\//i.test(product.image);
-          const src = isAbs
-            ? product.image
-            : cfImageUrl(product.image, "public");
-          return (
-            <Image
-              src={src}
-              alt={product.name}
-              fill
-              sizes="(min-width: 1024px) 600px, 100vw"
-              className="object-cover"
-            />
-          );
-        })()}
+        <Image
+          src={productImageUrl(product.image) ?? PRODUCT_IMAGE_PLACEHOLDER}
+          alt={product.name}
+          fill
+          sizes="(min-width: 1024px) 600px, 100vw"
+          className="object-cover"
+        />
       </div>
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold">{product.name}</h1>
