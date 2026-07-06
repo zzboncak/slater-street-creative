@@ -4,7 +4,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import type { Product } from "@/types";
-import { cfImageUrl } from "@/lib/cloudflare-images";
+import {
+  productImageUrl,
+  PRODUCT_IMAGE_PLACEHOLDER,
+} from "@/lib/cloudflare-images";
 
 export function formatPrice(cents: number) {
   return new Intl.NumberFormat("en-US", {
@@ -15,8 +18,7 @@ export function formatPrice(cents: number) {
 
 export default function ProductCard({ product }: { product: Product }) {
   const { add } = useCart();
-  const isAbsolute = /^https?:\/\//i.test(product.image);
-  const src = isAbsolute ? product.image : cfImageUrl(product.image, "public");
+  const src = productImageUrl(product.image) ?? PRODUCT_IMAGE_PLACEHOLDER;
   return (
     <div className="group rounded-lg border border-black/10 dark:border-white/15 overflow-hidden bg-white/90 dark:bg-black/30">
       <Link
@@ -42,7 +44,9 @@ export default function ProductCard({ product }: { product: Product }) {
           {product.description}
         </p>
         <div className="flex items-center justify-between pt-1">
-          <span className="font-semibold">{formatPrice(product.price)}</span>
+          <span className="font-semibold">
+            {formatPrice(product.priceCents)}
+          </span>
           <button
             onClick={() => add(product, 1)}
             className="rounded-md bg-black text-white dark:bg-white dark:text-black px-3 py-1.5 text-sm hover:opacity-90"

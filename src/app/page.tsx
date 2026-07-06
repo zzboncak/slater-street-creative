@@ -1,13 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
-import { products } from "@/data/products";
+import { getFeaturedProducts } from "@/lib/products";
 import ProductCard from "@/components/ProductCard";
 import getConfig from "next/config";
 
 const { publicRuntimeConfig } = getConfig();
 const { ENABLE_ECOMMERCE } = publicRuntimeConfig;
 
-export default function Home() {
+export default async function Home() {
   if (!ENABLE_ECOMMERCE) {
     return (
       <div>
@@ -59,7 +59,7 @@ export default function Home() {
     );
   }
 
-  const featured = products.slice(0, 3);
+  const featured = await getFeaturedProducts(3);
   return (
     <div>
       {/* Hero */}

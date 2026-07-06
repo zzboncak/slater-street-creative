@@ -46,7 +46,7 @@ There is no test suite yet. Before finishing any task, run: `npx tsc --noEmit &&
 See `AUDIT.md` for the full list. The ones that will bite you:
 
 1. **Admin auth is enforced server-side, not by middleware.** `src/middleware.ts` only checks that a `session` cookie _exists_ (a UX redirect). Every admin server action and the admin layout call `await requireAdmin()` from `src/lib/auth.ts`; route handlers needing a JSON status call `authorizeAdmin()`. Any new admin mutation MUST call one of these as its first line.
-2. **Two product sources of truth**: `src/data/products.ts` (mock) vs the DB. The DB is canonical going forward. UI `Product` type (`price`, `tags`) differs from Prisma (`priceCents`, `scentProfile`).
+2. **Cart still trusts client-side prices.** Products now come only from the DB — the mock is gone and the UI `Product` type is derived from Prisma (`priceCents`/`scentProfile`), read via `src/lib/products.ts` (SSC-6a). The remaining gap: the cart persists full product snapshots (incl. price) in localStorage; storing `productId`+`quantity` and re-pricing server-side is SSC-6b (AUDIT B1/B4).
 3. **`/api/checkout` is a stub** and there is no Order model yet.
 4. **Coupons and inventory are not enforced anywhere** — CRUD only.
 5. `if (!process.env.DATABASE_URL)` guards and lazy prisma imports are legacy; don't copy the pattern into new code.

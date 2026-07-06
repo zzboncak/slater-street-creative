@@ -26,3 +26,31 @@ export function cfImageUrl(id: string, variant?: string) {
   const path = useVariant ? `${id}/${useVariant}` : id;
   return `${trimmed}/${path}`;
 }
+
+/**
+ * Resolve a stored product image to a delivery URL, or null when there is none.
+ * Absolute URLs pass through unchanged; anything else is treated as a Cloudflare
+ * Images id. Centralizes the src logic previously copy-pasted across components.
+ */
+export function productImageUrl(
+  image: string | null | undefined,
+  variant?: string,
+): string | null {
+  if (!image) return null;
+  return /^https?:\/\//i.test(image) ? image : cfImageUrl(image, variant);
+}
+
+/**
+ * Neutral inline placeholder shown while real product photography is pending.
+ * A self-contained SVG data URI, so it needs no asset file or image-optimizer
+ * config and renders anywhere `next/image` accepts a src.
+ */
+export const PRODUCT_IMAGE_PLACEHOLDER =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    "<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'>" +
+      "<rect width='100%' height='100%' fill='#f3efe9'/>" +
+      "<text x='50%' y='50%' text-anchor='middle' dominant-baseline='middle' " +
+      "font-family='ui-sans-serif, system-ui, sans-serif' font-size='16' fill='#a89e8f'>" +
+      "Photo coming soon</text></svg>",
+  );

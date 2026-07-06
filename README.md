@@ -57,7 +57,7 @@ with those credentials, then visit http://localhost:3000/admin
 - `src/app/cart/page.tsx` – Cart UI
 - `src/components/*` – Header, Footer, ProductCard
 - `src/context/CartContext.tsx` – Cart state provider
-- `src/data/products.ts` – Mock products
+- `src/lib/products.ts` – Product reads from the DB (single source of truth)
 - `src/app/api/checkout/route.ts` – Checkout API (Stripe stub)
 - `src/app/api/auth/*` – Signup/Login/Logout APIs (email/password with hashed storage + JWT cookie)
 - `src/app/(auth)/*` – Signup/Login pages
