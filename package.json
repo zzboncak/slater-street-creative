@@ -7,7 +7,7 @@
     "dev:db": "bash scripts/dev.sh",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
-    "db:seed": "node prisma/seed.js",
+    "db:seed": "tsx prisma/seed.ts",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
@@ -30,6 +30,7 @@
     "eslint-config-next": "15.4.6",
     "prettier": "^3.6.2",
     "tailwindcss": "^4",
+    "tsx": "^4.23.0",
     "typescript": "^5"
   }
 }
