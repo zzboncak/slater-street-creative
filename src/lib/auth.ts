@@ -150,8 +150,7 @@ export async function clearSessionCookie() {
 }
 
 type AuthorizeResult =
-  | { ok: true; user: User }
-  | { ok: false; status: 401 | 403 };
+  { ok: true; user: User } | { ok: false; status: 401 | 403 };
 
 /**
  * Full server-side admin authorization check. Returns a discriminated result
