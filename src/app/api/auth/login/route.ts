@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import {
   verifyPassword,
   signJwt,
@@ -18,12 +19,6 @@ export async function POST(req: Request) {
       { status: 400 },
     );
 
-  if (!process.env.DATABASE_URL)
-    return NextResponse.json(
-      { error: "database not configured" },
-      { status: 500 },
-    );
-  const { prisma } = await import("@/lib/prisma");
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user)
     return NextResponse.json({ error: "invalid credentials" }, { status: 401 });

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-// Lazy import prisma in handler
+import { prisma } from "@/lib/prisma";
 import {
   hashPassword,
   signJwt,
@@ -20,12 +20,6 @@ export async function POST(req: Request) {
       { status: 400 },
     );
 
-  if (!process.env.DATABASE_URL)
-    return NextResponse.json(
-      { error: "database not configured" },
-      { status: 500 },
-    );
-  const { prisma } = await import("@/lib/prisma");
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing)
     return NextResponse.json(

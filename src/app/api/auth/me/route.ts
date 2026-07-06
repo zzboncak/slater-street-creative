@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { prisma } from "@/lib/prisma";
 import { verifyJwt } from "@/lib/auth";
-// lazy import prisma only if needed
 
 export async function GET() {
   const jar = await cookies();
@@ -9,8 +9,7 @@ export async function GET() {
   const payload = token ? verifyJwt(token) : null;
   if (!payload)
     return NextResponse.json({ authenticated: false }, { status: 200 });
-  if (payload.jti && process.env.DATABASE_URL) {
-    const { prisma } = await import("@/lib/prisma");
+  if (payload.jti) {
     const session = await prisma.session.findUnique({
       where: { id: payload.jti },
     });

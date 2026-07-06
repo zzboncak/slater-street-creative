@@ -6,6 +6,13 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { safeNextPath } from "@/lib/safe-redirect";
+import { prisma } from "@/lib/prisma";
+import {
+  verifyPassword,
+  setSessionCookie,
+  signJwt,
+  SESSION_TTL_SECONDS,
+} from "@/lib/auth";
 
 export default function LoginPage({
   searchParams,
@@ -18,12 +25,6 @@ export default function LoginPage({
       .toLowerCase()
       .trim();
     const password = String(formData.get("password") || "");
-    if (!process.env.DATABASE_URL) {
-      redirect("/login?error=db");
-    }
-    const { prisma } = await import("@/lib/prisma");
-    const { verifyPassword, setSessionCookie, signJwt, SESSION_TTL_SECONDS } =
-      await import("@/lib/auth");
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user || !verifyPassword(password, user.passwordHash)) {
       redirect("/login?error=invalid");
