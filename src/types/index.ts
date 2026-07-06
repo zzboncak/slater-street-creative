@@ -12,7 +12,24 @@ export type Product = Pick<
   image: string;
 };
 
+// The cart persists only ids + quantities. Prices/details are re-fetched from
+// the DB via POST /api/cart so the client never holds authoritative pricing.
 export type CartItem = {
-  product: Product;
+  productId: string;
   quantity: number;
+};
+
+// A cart line priced server-side (all money computed on the backend).
+export type PricedCartLine = {
+  productId: string;
+  name: string;
+  image: string;
+  priceCents: number; // unit price
+  quantity: number;
+  lineTotalCents: number;
+};
+
+export type PricedCart = {
+  lines: PricedCartLine[];
+  subtotalCents: number;
 };
