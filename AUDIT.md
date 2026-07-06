@@ -24,7 +24,7 @@ Snapshot audit after ~1 year untouched. TypeScript compiles clean (`tsc --noEmit
 
 **B4. Cart trusts client-side prices.** Full product objects (including price) live in localStorage. Checkout must re-price everything server-side from the DB.
 
-**B5. No tests, no CI.** No test framework, no workflows. Note: `.gitignore` ignores `.github/*`, which will silently block committing CI workflows.
+**B5. ~~No tests, no CI.~~ Resolved (SSC-9).** Vitest configured (`npm test`) with first tests for `src/lib/auth.ts` (hash/verify roundtrip, malformed JWT → null) and the cart reducer. `.gitignore` now allows `.github/workflows/`, and a GitHub Actions workflow runs typecheck + lint + test on pushes to `main` and every PR.
 
 ## Low severity / hygiene
 
