@@ -48,7 +48,7 @@ export default function ProductCard({ product }: { product: Product }) {
             {formatPrice(product.priceCents)}
           </span>
           <button
-            onClick={() => add(product, 1)}
+            onClick={() => add(product.id, 1)}
             className="rounded-md bg-black text-white dark:bg-white dark:text-black px-3 py-1.5 text-sm hover:opacity-90"
           >
             Add to cart

@@ -7,7 +7,7 @@ import { useCart } from "@/context/CartContext";
 const ENABLE_ECOMMERCE = process.env.NEXT_PUBLIC_ENABLE_ECOMMERCE === "true";
 
 export default function Header() {
-  const { items } = useCart();
+  const { count } = useCart();
   const [mounted, setMounted] = useState(false);
   const [auth, setAuth] = useState<{ authenticated: boolean } | null>(null);
 
@@ -19,8 +19,6 @@ export default function Header() {
       .then((data) => setAuth({ authenticated: !!data?.authenticated }))
       .catch(() => setAuth({ authenticated: false }));
   }, []);
-
-  const count = items.reduce((n, i) => n + i.quantity, 0);
 
   async function onLogoutClick(e: React.MouseEvent) {
     e.preventDefault();

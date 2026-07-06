@@ -2,29 +2,32 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
   useReducer,
 } from "react";
-import type { CartItem, Product } from "@/types";
+import type { CartItem } from "@/types";
 
-// Simple cart reducer
+// Cart holds only { productId, quantity }. Pricing/details come from the server
+// (POST /api/cart) — the client never stores or computes authoritative money.
 
 type State = { items: CartItem[] };
 
 type Action =
-  | { type: "ADD"; product: Product; quantity?: number }
+  | { type: "ADD"; productId: string; quantity?: number }
   | { type: "REMOVE"; productId: string }
   | { type: "CLEAR" }
-  | { type: "SET_QTY"; productId: string; quantity: number };
+  | { type: "SET_QTY"; productId: string; quantity: number }
+  | { type: "PRUNE"; keepIds: string[] };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "ADD": {
       const qty = action.quantity ?? 1;
       const idx = state.items.findIndex(
-        (i) => i.product.id === action.product.id,
+        (i) => i.productId === action.productId,
       );
       if (idx >= 0) {
         const items = [...state.items];
@@ -32,39 +35,43 @@ function reducer(state: State, action: Action): State {
         return { items };
       }
       return {
-        items: [...state.items, { product: action.product, quantity: qty }],
+        items: [...state.items, { productId: action.productId, quantity: qty }],
       };
     }
     case "REMOVE":
       return {
-        items: state.items.filter((i) => i.product.id !== action.productId),
+        items: state.items.filter((i) => i.productId !== action.productId),
       };
     case "CLEAR":
       return { items: [] };
     case "SET_QTY":
       return {
         items: state.items.map((i) =>
-          i.product.id === action.productId
+          i.productId === action.productId
             ? { ...i, quantity: Math.max(1, action.quantity) }
             : i,
         ),
       };
+    case "PRUNE": {
+      const keep = new Set(action.keepIds);
+      const items = state.items.filter((i) => keep.has(i.productId));
+      // Avoid a needless state change (and re-render/refetch loop) when nothing
+      // was actually pruned.
+      return items.length === state.items.length ? state : { items };
+    }
     default:
       return state;
   }
 }
 
-function subtotal(items: CartItem[]) {
-  return items.reduce((sum, i) => sum + i.product.priceCents * i.quantity, 0);
-}
-
 export type CartContextType = {
   items: CartItem[];
-  add: (product: Product, quantity?: number) => void;
+  count: number;
+  add: (productId: string, quantity?: number) => void;
   remove: (productId: string) => void;
   clear: () => void;
   setQty: (productId: string, quantity: number) => void;
-  subtotal: number;
+  prune: (keepIds: string[]) => void;
 };
 
 const CartContext = createContext<CartContextType | null>(null);
@@ -76,12 +83,26 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const raw = localStorage.getItem("cart");
         if (raw) {
           const parsed = JSON.parse(raw) as State;
-          // Ignore carts persisted under the pre-priceCents shape (or any junk)
-          // rather than rendering NaN subtotals from a missing price field.
-          const valid = parsed?.items?.every(
-            (i) => typeof i?.product?.priceCents === "number",
-          );
-          if (valid) return parsed;
+          if (Array.isArray(parsed?.items)) {
+            // Normalize on load: keep only { productId: string, quantity: int>=1 }
+            // and collapse duplicate ids (summing) so the rest of the app can
+            // rely on unique ids. Anything else (incl. the old shape) is dropped.
+            const merged = new Map<string, number>();
+            for (const i of parsed.items) {
+              if (typeof i?.productId !== "string") continue;
+              if (!Number.isInteger(i?.quantity) || i.quantity < 1) continue;
+              merged.set(
+                i.productId,
+                (merged.get(i.productId) ?? 0) + i.quantity,
+              );
+            }
+            return {
+              items: [...merged].map(([productId, quantity]) => ({
+                productId,
+                quantity,
+              })),
+            };
+          }
         }
       } catch {}
     }
@@ -94,17 +115,44 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, [state]);
 
+  // Stable callbacks (dispatch is stable) so effects that depend on them don't
+  // re-run on every render.
+  const add = useCallback(
+    (productId: string, quantity?: number) =>
+      dispatch({ type: "ADD", productId, quantity }),
+    [],
+  );
+  const remove = useCallback(
+    (productId: string) => dispatch({ type: "REMOVE", productId }),
+    [],
+  );
+  const clear = useCallback(() => dispatch({ type: "CLEAR" }), []);
+  const setQty = useCallback(
+    (productId: string, quantity: number) =>
+      dispatch({ type: "SET_QTY", productId, quantity }),
+    [],
+  );
+  const prune = useCallback(
+    (keepIds: string[]) => dispatch({ type: "PRUNE", keepIds }),
+    [],
+  );
+
+  const count = useMemo(
+    () => state.items.reduce((n, i) => n + i.quantity, 0),
+    [state.items],
+  );
+
   const value = useMemo<CartContextType>(
     () => ({
       items: state.items,
-      add: (product, quantity) => dispatch({ type: "ADD", product, quantity }),
-      remove: (productId) => dispatch({ type: "REMOVE", productId }),
-      clear: () => dispatch({ type: "CLEAR" }),
-      setQty: (productId, quantity) =>
-        dispatch({ type: "SET_QTY", productId, quantity }),
-      subtotal: subtotal(state.items),
+      count,
+      add,
+      remove,
+      clear,
+      setQty,
+      prune,
     }),
-    [state.items],
+    [state.items, count, add, remove, clear, setQty, prune],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
