@@ -83,16 +83,26 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const raw = localStorage.getItem("cart");
         if (raw) {
           const parsed = JSON.parse(raw) as State;
-          // Only accept the current { productId, quantity } shape; drop carts
-          // saved under any older shape rather than rendering junk.
-          const valid =
-            Array.isArray(parsed?.items) &&
-            parsed.items.every(
-              (i) =>
-                typeof i?.productId === "string" &&
-                typeof i?.quantity === "number",
-            );
-          if (valid) return parsed;
+          if (Array.isArray(parsed?.items)) {
+            // Normalize on load: keep only { productId: string, quantity: int>=1 }
+            // and collapse duplicate ids (summing) so the rest of the app can
+            // rely on unique ids. Anything else (incl. the old shape) is dropped.
+            const merged = new Map<string, number>();
+            for (const i of parsed.items) {
+              if (typeof i?.productId !== "string") continue;
+              if (!Number.isInteger(i?.quantity) || i.quantity < 1) continue;
+              merged.set(
+                i.productId,
+                (merged.get(i.productId) ?? 0) + i.quantity,
+              );
+            }
+            return {
+              items: [...merged].map(([productId, quantity]) => ({
+                productId,
+                quantity,
+              })),
+            };
+          }
         }
       } catch {}
     }

@@ -40,3 +40,15 @@ export async function getProductById(id: string): Promise<Product | null> {
   const p = await prisma.product.findUnique({ where: { id } });
   return p ? toUIProduct(p) : null;
 }
+
+// Batch read for a set of ids (active only). Used by cart re-pricing so all
+// product DB reads stay in this module.
+export async function getActiveProductsByIds(
+  ids: string[],
+): Promise<Product[]> {
+  if (ids.length === 0) return [];
+  const rows = await prisma.product.findMany({
+    where: { id: { in: ids }, active: true },
+  });
+  return rows.map(toUIProduct);
+}

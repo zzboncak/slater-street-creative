@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getActiveProductsByIds } from "@/lib/products";
 import type { PricedCart } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -30,10 +30,7 @@ export async function POST(req: Request) {
   const empty: PricedCart = { lines: [], subtotalCents: 0 };
   if (wanted.size === 0) return NextResponse.json(empty);
 
-  const products = await prisma.product.findMany({
-    where: { id: { in: [...wanted.keys()] }, active: true },
-    select: { id: true, name: true, image: true, priceCents: true },
-  });
+  const products = await getActiveProductsByIds([...wanted.keys()]);
 
   const lines = products
     .map((p) => {
@@ -41,7 +38,7 @@ export async function POST(req: Request) {
       return {
         productId: p.id,
         name: p.name,
-        image: p.image ?? "",
+        image: p.image, // already normalized to "" by the products helper
         priceCents: p.priceCents,
         quantity,
         lineTotalCents: p.priceCents * quantity,
