@@ -5,6 +5,7 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
+import { safeNextPath } from "@/lib/safe-redirect";
 
 export default function LoginPage({
   searchParams,
@@ -34,8 +35,7 @@ export default function LoginPage({
     const token = signJwt({ sub: user.id, email: user.email, jti: session.id });
     await setSessionCookie(token);
     const params = await searchParams;
-    const next = params?.next || "/account";
-    redirect(next);
+    redirect(safeNextPath(params?.next));
   }
 
   return (
