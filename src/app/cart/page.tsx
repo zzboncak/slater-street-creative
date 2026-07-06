@@ -83,7 +83,7 @@ export default function CartPage() {
                       className="w-16 rounded border px-2 py-1 bg-transparent"
                     />
                     <span className="ml-auto font-medium">
-                      {formatPrice(product.price * quantity)}
+                      {formatPrice(product.priceCents * quantity)}
                     </span>
                   </div>
                 </div>

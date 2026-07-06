@@ -1,24 +1,9 @@
-import React from "react";
-
-type Product = {
-  id: string;
-  name: string;
-  scentProfile: string[];
-  active: boolean;
-};
+import { getActiveProducts } from "@/lib/products";
 
 export const dynamic = "force-dynamic";
 
 export default async function CandlesPage() {
-  let products: Product[] = [];
-  
-  if (process.env.DATABASE_URL) {
-    const { prisma } = await import("@/lib/prisma");
-    products = (await prisma.product.findMany({
-      where: { active: true, type: "CANDLE" },
-      orderBy: { createdAt: "asc" },
-    })) as unknown as Product[];
-  }
+  const products = await getActiveProducts();
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-3xl">

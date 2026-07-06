@@ -55,7 +55,7 @@ function reducer(state: State, action: Action): State {
 }
 
 function subtotal(items: CartItem[]) {
-  return items.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
+  return items.reduce((sum, i) => sum + i.product.priceCents * i.quantity, 0);
 }
 
 export type CartContextType = {
@@ -74,7 +74,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") {
       try {
         const raw = localStorage.getItem("cart");
-        if (raw) return JSON.parse(raw) as State;
+        if (raw) {
+          const parsed = JSON.parse(raw) as State;
+          // Ignore carts persisted under the pre-priceCents shape (or any junk)
+          // rather than rendering NaN subtotals from a missing price field.
+          const valid = parsed?.items?.every(
+            (i) => typeof i?.product?.priceCents === "number",
+          );
+          if (valid) return parsed;
+        }
       } catch {}
     }
     return init;

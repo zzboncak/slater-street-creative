@@ -24,35 +24,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   try {
-    if (process.env.DATABASE_URL) {
-      const { prisma } = await import("@/lib/prisma");
-      const products: { id: string; updatedAt: Date }[] =
-        await prisma.product.findMany({
-          where: { active: true },
-          select: { id: true, updatedAt: true },
-        });
-      pages.push(
-        ...products.map((p) => ({
-          url: `${site}/products/${p.id}`,
-          lastModified: p.updatedAt ?? new Date(),
-          changeFrequency: "weekly" as const,
-          priority: 0.7,
-        })),
-      );
-    } else {
-      const mod = await import("@/data/products");
-      const mockProducts: { id: string }[] = mod.products;
-      pages.push(
-        ...mockProducts.map((p) => ({
-          url: `${site}/products/${p.id}`,
-          lastModified: new Date(),
-          changeFrequency: "weekly" as const,
-          priority: 0.6,
-        })),
-      );
-    }
+    const { prisma } = await import("@/lib/prisma");
+    const products = await prisma.product.findMany({
+      where: { active: true },
+      select: { id: true, updatedAt: true },
+    });
+    pages.push(
+      ...products.map((p) => ({
+        url: `${site}/products/${p.id}`,
+        lastModified: p.updatedAt ?? new Date(),
+        changeFrequency: "weekly" as const,
+        priority: 0.7,
+      })),
+    );
   } catch {
-    // ignore enrichment errors
+    // Sitemap is non-critical: if the DB is unreachable, return static pages.
   }
 
   return pages;

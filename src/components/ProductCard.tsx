@@ -42,7 +42,9 @@ export default function ProductCard({ product }: { product: Product }) {
           {product.description}
         </p>
         <div className="flex items-center justify-between pt-1">
-          <span className="font-semibold">{formatPrice(product.price)}</span>
+          <span className="font-semibold">
+            {formatPrice(product.priceCents)}
+          </span>
           <button
             onClick={() => add(product, 1)}
             className="rounded-md bg-black text-white dark:bg-white dark:text-black px-3 py-1.5 text-sm hover:opacity-90"

@@ -49,6 +49,69 @@ async function main() {
       console.log("Admin user already exists");
     }
   }
+
+  // Default catalog so the store is never empty in dev. Stable slug ids keep
+  // /products/<id> URLs consistent. Idempotent: re-running refreshes fields and
+  // leaves existing inventory untouched.
+  const catalog = [
+    {
+      id: "classic-vanilla",
+      name: "Classic Vanilla",
+      description: "A warm, comforting vanilla scent for any room.",
+      priceCents: 1800,
+      image:
+        "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1200&auto=format&fit=crop&q=60",
+      scentProfile: ["vanilla", "warm"],
+      quantity: 25,
+    },
+    {
+      id: "lavender-fields",
+      name: "Lavender Fields",
+      description: "Relaxing lavender aroma, perfect for evenings.",
+      priceCents: 2000,
+      image:
+        "https://images.unsplash.com/photo-1503863937795-62954a3c0f05?w=1200&auto=format&fit=crop&q=60",
+      scentProfile: ["lavender", "floral"],
+      quantity: 25,
+    },
+    {
+      id: "citrus-breeze",
+      name: "Citrus Breeze",
+      description: "Bright citrus notes to freshen your space.",
+      priceCents: 1900,
+      image:
+        "https://images.unsplash.com/photo-1505575989282-9576e7b91f0d?w=1200&auto=format&fit=crop&q=60",
+      scentProfile: ["citrus", "fresh"],
+      quantity: 25,
+    },
+  ];
+
+  for (const c of catalog) {
+    await prisma.product.upsert({
+      where: { id: c.id },
+      update: {
+        name: c.name,
+        description: c.description,
+        priceCents: c.priceCents,
+        image: c.image,
+        scentProfile: c.scentProfile,
+        type: "CANDLE",
+        active: true,
+      },
+      create: {
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        priceCents: c.priceCents,
+        image: c.image,
+        scentProfile: c.scentProfile,
+        type: "CANDLE",
+        active: true,
+        inventory: { create: { quantity: c.quantity } },
+      },
+    });
+  }
+  console.log(`Seeded ${catalog.length} products.`);
 }
 
 main()
