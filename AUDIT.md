@@ -12,7 +12,7 @@ Snapshot audit after ~1 year untouched. TypeScript compiles clean (`tsc --noEmit
 
 **A4. ~~Password hashing uses `JWT_SECRET` as a static salt.~~ Resolved (SSC-4).** `hashPassword` now uses a per-user random salt (pbkdf2, stored as `salt:hash`); password hashing no longer touches `JWT_SECRET`. The secret signs session tokens only and is required in production (throws at startup if unset; dev-only fallback with a loud warning). `verifyPassword` remains timing-safe and rejects legacy/malformed hashes.
 
-**A5. `verifyJwt` can crash the request.** `crypto.timingSafeEqual` throws when buffer lengths differ, so a malformed session cookie causes a 500 instead of returning null. Wrap in try/catch.
+**A5. ~~`verifyJwt` can crash the request.~~ Resolved (SSC-5).** `verifyJwt` now checks signature-buffer length before `timingSafeEqual` (constant-time comparison preserved) and wraps the whole body in try/catch, so any malformed token (wrong part count, bad base64, bad JSON, wrong-length sig) returns `null` instead of throwing a 500.
 
 ## Medium severity
 

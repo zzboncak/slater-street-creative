@@ -90,25 +90,40 @@ export function signJwt(
   return `${data}.${sig}`;
 }
 
+// Must never throw: a malformed/attacker-supplied cookie should read as
+// "not authenticated" (null), not crash the request with a 500.
 export function verifyJwt(token: string): JwtPayload | null {
-  const parts = token.split(".");
-  if (parts.length !== 3) return null;
-  const [headerB64, payloadB64, sig] = parts;
-  const data = `${headerB64}.${payloadB64}`;
-  const expected = crypto
-    .createHmac("sha256", JWT_SECRET)
-    .update(data)
-    .digest("base64")
-    .replace(/=/g, "")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_");
-  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected)))
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const [headerB64, payloadB64, sig] = parts;
+    const data = `${headerB64}.${payloadB64}`;
+    const expected = crypto
+      .createHmac("sha256", JWT_SECRET)
+      .update(data)
+      .digest("base64")
+      .replace(/=/g, "")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_");
+    const sigBuf = Buffer.from(sig);
+    const expectedBuf = Buffer.from(expected);
+    // timingSafeEqual throws on length mismatch; check length first, then
+    // compare in constant time for equal-length (i.e. real) signatures.
+    if (sigBuf.length !== expectedBuf.length) return null;
+    if (!crypto.timingSafeEqual(sigBuf, expectedBuf)) return null;
+    const payload = JSON.parse(
+      Buffer.from(payloadB64, "base64").toString(),
+    ) as JwtPayload;
+    if (
+      typeof payload?.exp !== "number" ||
+      payload.exp < Math.floor(Date.now() / 1000)
+    ) {
+      return null;
+    }
+    return payload;
+  } catch {
     return null;
-  const payload = JSON.parse(
-    Buffer.from(payloadB64, "base64").toString(),
-  ) as JwtPayload;
-  if (payload.exp < Math.floor(Date.now() / 1000)) return null;
-  return payload;
+  }
 }
 
 export async function setSessionCookie(token: string) {
