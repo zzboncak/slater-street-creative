@@ -15,7 +15,7 @@ Next.js 15 (App Router) + React 19 + TypeScript (strict) · Tailwind CSS v4 · P
 ```bash
 npm run dev:db     # start Postgres container + migrate + dev server (preferred)
 npm run dev        # dev server only (assumes DB is already up on port 5433)
-npm run db:seed    # seed database (runs prisma/seed.js)
+npm run db:seed    # seed database (runs prisma/seed.ts via tsx)
 npm run lint       # ESLint
 npx tsc --noEmit   # typecheck
 npm run format     # Prettier
@@ -51,7 +51,7 @@ See `AUDIT.md` for the full list. The ones that will bite you:
 4. **Coupons and inventory are not enforced anywhere** — CRUD only.
 5. `if (!process.env.DATABASE_URL)` guards and lazy prisma imports are legacy; don't copy the pattern into new code.
 6. `.gitignore` ignores `.github/*` — adding CI workflows requires a gitignore exception.
-7. Three seed files exist; `prisma/seed.js` is the one that runs.
+7. One seed file: `prisma/seed.ts`, run via `tsx` (`npm run db:seed`). It imports the real `hashPassword` from `src/lib/auth` and seeds the ADMIN user, the candle catalog + inventory, and a test coupon.
 
 ## Security rules
 
