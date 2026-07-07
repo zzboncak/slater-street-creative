@@ -32,7 +32,7 @@ Before finishing any task, run: `npx tsc --noEmit && npm run lint && npm run for
 - Admin mutations are inline server actions inside the admin `page.tsx` files.
 - `src/lib/auth.ts` — hand-rolled JWT + pbkdf2. `src/lib/prisma.ts` — client singleton.
 - `src/context/CartContext.tsx` — client-side cart, persisted to localStorage.
-- `prisma/schema.prisma` — Product, Inventory, Customer, Coupon, User, Session.
+- `prisma/schema.prisma` — Product, Inventory, Customer, Coupon, User, Session, Order, OrderItem.
 
 ## Conventions
 

@@ -18,6 +18,14 @@ enum ProductType {
   CANDLE
 }
 
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  FULFILLED
+  CANCELLED
+}
+
 model Product {
   id            String     @id @default(cuid())
   name          String
@@ -31,6 +39,7 @@ model Product {
   updatedAt     DateTime   @updatedAt
 
   inventory   Inventory?
+  orderItems  OrderItem[]
 }
 
 model Inventory {
@@ -48,6 +57,7 @@ model Customer {
 
   // optional link to User (1:1)
   user       User?
+  orders     Order[]
 }
 
 model Coupon {
@@ -85,4 +95,61 @@ model Session {
   expiresAt  DateTime
   revokedAt  DateTime?
   lastUsedAt DateTime?
+}
+
+model Order {
+  id String @id @default(cuid())
+
+  // Who ordered: nullable customer link (guest checkout) + email snapshot.
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  email      String
+
+  status OrderStatus @default(PENDING)
+
+  // Money — integer cents, snapshot at order time.
+  subtotalCents Int
+  discountCents Int @default(0)
+  totalCents    Int
+
+  // Coupon snapshot (preserved even if the coupon later changes/deletes).
+  couponCode       String?
+  couponPercentOff Int?
+  couponAmountOff  Int?
+
+  // Shipping address snapshot (embedded; nullable — set at checkout).
+  shipName       String?
+  shipLine1      String?
+  shipLine2      String?
+  shipCity       String?
+  shipState      String?
+  shipPostalCode String?
+  shipCountry    String?
+
+  stripeCheckoutSessionId String? @unique // webhook idempotency
+
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  items     OrderItem[]
+
+  @@index([customerId])
+  @@index([status])
+}
+
+model OrderItem {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // Convenience link, nullable + SetNull so deleting a product keeps history.
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  // Snapshots — so later product edits/deletes don't rewrite order history.
+  name           String
+  unitPriceCents Int
+  quantity       Int
+  lineTotalCents Int
+
+  @@index([orderId])
 }
