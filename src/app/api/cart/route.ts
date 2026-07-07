@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
 import { getActiveProductsByIds } from "@/lib/products";
+import { normalizeRequestedItems } from "@/lib/pricing";
 import type { PricedCart } from "@/types";
 
 export const dynamic = "force-dynamic";
-
-// Upper bound per line so a crafted request can't produce absurd totals.
-const MAX_QTY = 999;
 
 /**
  * Re-price a cart from the database. The client sends only { productId, quantity }
@@ -14,18 +12,7 @@ const MAX_QTY = 999;
  */
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
-  const rawItems = Array.isArray(body?.items) ? body.items : [];
-
-  // Normalize + validate: keep string ids with a positive integer quantity,
-  // collapsing duplicate ids and clamping the total per product.
-  const wanted = new Map<string, number>();
-  for (const it of rawItems) {
-    if (!it || typeof it.productId !== "string") continue;
-    const qty = Number(it.quantity);
-    if (!Number.isInteger(qty) || qty < 1) continue;
-    const next = Math.min((wanted.get(it.productId) ?? 0) + qty, MAX_QTY);
-    wanted.set(it.productId, next);
-  }
+  const wanted = normalizeRequestedItems(body);
 
   const empty: PricedCart = { lines: [], subtotalCents: 0 };
   if (wanted.size === 0) return NextResponse.json(empty);

@@ -149,29 +149,21 @@ export async function clearSessionCookie() {
   });
 }
 
-type AuthorizeResult =
-  { ok: true; user: User } | { ok: false; status: 401 | 403 };
-
 /**
- * Full server-side admin authorization check. Returns a discriminated result
- * instead of throwing, so each caller decides how to react (redirect to login,
- * return JSON, etc.). Fails closed: any missing/invalid step yields `ok: false`.
- *
- * - 401 = no usable session (missing/invalid JWT, or the DB session is
- *   missing/revoked/expired/belongs to another user, or the DB is unreachable).
- * - 403 = valid session but the user is not an ADMIN.
+ * Resolve the currently-authenticated user (any role) from the session cookie,
+ * or null. Validates the JWT signature/expiry and the DB-backed session
+ * (existence, ownership, not revoked/expired). Fails closed on anything wrong.
  */
-export async function authorizeAdmin(): Promise<AuthorizeResult> {
+export async function getSessionUser(): Promise<User | null> {
   const jar = await cookies();
   const token = jar.get("session")?.value;
   const payload = token ? verifyJwt(token) : null;
-  if (!payload) return { ok: false, status: 401 };
+  if (!payload) return null;
 
   const user = await prisma.user.findUnique({
     where: { email: payload.email },
   });
-  if (!user) return { ok: false, status: 401 };
-  if (user.role !== "ADMIN") return { ok: false, status: 403 };
+  if (!user) return null;
 
   // Session revocation is DB-backed by jti; reject anything not currently valid.
   if (payload.jti) {
@@ -184,10 +176,29 @@ export async function authorizeAdmin(): Promise<AuthorizeResult> {
       session.revokedAt ||
       session.expiresAt <= new Date()
     ) {
-      return { ok: false, status: 401 };
+      return null;
     }
   }
 
+  return user;
+}
+
+type AuthorizeResult =
+  { ok: true; user: User } | { ok: false; status: 401 | 403 };
+
+/**
+ * Full server-side admin authorization check. Returns a discriminated result
+ * instead of throwing, so each caller decides how to react (redirect to login,
+ * return JSON, etc.). Fails closed: any missing/invalid step yields `ok: false`.
+ *
+ * - 401 = no usable session (missing/invalid JWT, or the DB session is
+ *   missing/revoked/expired/belongs to another user).
+ * - 403 = valid session but the user is not an ADMIN.
+ */
+export async function authorizeAdmin(): Promise<AuthorizeResult> {
+  const user = await getSessionUser();
+  if (!user) return { ok: false, status: 401 };
+  if (user.role !== "ADMIN") return { ok: false, status: 403 };
   return { ok: true, user };
 }
 
