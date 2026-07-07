@@ -85,15 +85,16 @@ export default function CartPage() {
         return;
       }
       const data = await res.json().catch(() => null);
-      if (!res.ok) {
+      if (!res.ok || !data?.url) {
         setCheckoutError(
           data?.error ?? "Sorry — checkout failed. Please try again.",
         );
         return;
       }
-      // Order placed: clear the cart and go to the confirmation page.
-      clear();
-      window.location.href = `/thank-you?order=${data.id}`;
+      // Hand off to Stripe-hosted Checkout. Don't clear the cart here — a
+      // cancelled payment returns to /cart with items intact; the cart is
+      // cleared on the /thank-you?order= landing after a successful payment.
+      window.location.href = data.url;
     } catch {
       setCheckoutError("Sorry — checkout failed. Please try again.");
     } finally {

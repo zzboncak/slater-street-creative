@@ -6,7 +6,7 @@ A Next.js e-commerce starter for a candle shop. Includes:
 - About page
 - Products grid with mock data
 - Cart with add/remove/quantity and subtotal
-- Checkout API stub (Stripe-ready)
+- Checkout with server-side re-pricing → Stripe-hosted Checkout
 
 ## Getting Started
 
@@ -58,7 +58,9 @@ with those credentials, then visit http://localhost:3000/admin
 - `src/components/*` – Header, Footer, ProductCard
 - `src/context/CartContext.tsx` – Cart state provider
 - `src/lib/products.ts` – Product reads from the DB (single source of truth)
-- `src/app/api/checkout/route.ts` – Checkout API (Stripe stub)
+- `src/app/api/checkout/route.ts` – Checkout: DB re-pricing + Stripe Checkout session
+- `src/lib/stripe.ts` – Stripe client singleton (server-only)
+- `src/lib/pricing.ts` – Pure pricing/discount helpers (unit-tested)
 - `src/app/api/auth/*` – Signup/Login/Logout APIs (email/password with hashed storage + JWT cookie)
 - `src/app/(auth)/*` – Signup/Login pages
 - `prisma/schema.prisma` – DB schema
@@ -66,63 +68,35 @@ with those credentials, then visit http://localhost:3000/admin
 - `src/middleware.ts` – Session-cookie gate for `/admin` (redirects to `/login`)
 - `src/app/admin/*` – Admin pages (products, inventory, coupons)
 
-## Stripe integration (stub -> real)
+## Payments (Stripe Checkout)
 
-1. Install Stripe SDK:
+Payment uses **Stripe-hosted Checkout** — Stripe handles card data/PCI; we keep
+products, inventory, coupons, customers, and orders.
 
-```bash
-npm install stripe
-```
-
-2. Add `.env.local`:
+Set a **test** secret key (and optionally the public site origin) in `.env`:
 
 ```
-STRIPE_SECRET_KEY=sk_live_...
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
-SITE_URL=http://localhost:3000
+STRIPE_SECRET_KEY=sk_test_...   # test key in dev; never commit a real value
+SITE_URL=http://localhost:3000  # used for Stripe success/cancel URLs
 ```
 
-3. Implement Checkout Session in `src/app/api/checkout/route.ts`:
+Flow: the cart posts `{ items: [{ productId, quantity }], couponCode? }` to
+`POST /api/checkout` (never prices). The server re-prices from the DB, validates
+inventory + coupon, creates a **PENDING** `Order`, then creates a Stripe Checkout
+Session from the server-computed line items (+ discount), stores the session id
+on the order, and returns `{ url }`. The browser is redirected there; success →
+`/thank-you?order=<id>`, cancel → `/cart`. Without `STRIPE_SECRET_KEY`, checkout
+returns `503`.
 
-```ts
-// import Stripe from "stripe";
-// import { NextRequest, NextResponse } from "next/server";
-// const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2025-04-30" });
-// export async function POST(req: NextRequest) {
-//   const { items } = await req.json();
-//   const session = await stripe.checkout.sessions.create({
-//     mode: "payment",
-//     success_url: `${process.env.SITE_URL}/thank-you`,
-//     cancel_url: `${process.env.SITE_URL}/cart`,
-//     line_items: items.map((i: { name: string; amount: number; quantity: number }) => ({
-//       price_data: { currency: "usd", product_data: { name: i.name }, unit_amount: i.amount },
-//       quantity: i.quantity,
-//     })),
-//   });
-//   return NextResponse.json({ url: session.url });
-// }
-```
-
-4. Send cart to API from `src/app/cart/page.tsx`:
-
-```ts
-await fetch("/api/checkout", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    items: items.map(({ product, quantity }) => ({
-      name: product.name,
-      amount: product.price,
-      quantity,
-    })),
-  }),
-});
-```
+Test end-to-end with Stripe test card `4242 4242 4242 4242` (any future expiry,
+any CVC).
 
 ## Future backend
 
-- Admin pages for products and orders
-- Webhooks endpoint `/api/stripe/webhook` to verify payments and fulfill orders
+- **`/api/stripe/webhook`** to verify payment (`checkout.session.completed`),
+  mark the order `PAID`, and decrement inventory — the order stays `PENDING`
+  until this lands (next ticket).
+- Admin pages for orders.
 
 ## Local Postgres via Docker (Recommended for Dev)
 
