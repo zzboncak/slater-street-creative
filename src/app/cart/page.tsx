@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useCart } from "@/context/CartContext";
-import { formatPrice } from "@/components/ProductCard";
+import { formatPrice } from "@/lib/format";
 import {
   productImageUrl,
   PRODUCT_IMAGE_PLACEHOLDER,
@@ -22,12 +22,19 @@ export default function CartPage() {
   const [error, setError] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [couponInput, setCouponInput] = useState("");
+  const [coupon, setCoupon] = useState(""); // committed code sent to the server
 
   // Re-price from the server whenever the cart changes. Money is never computed
   // client-side; we only send { productId, quantity } and render what comes back.
   useEffect(() => {
     if (items.length === 0) {
-      setPriced({ lines: [], subtotalCents: 0 });
+      setPriced({
+        lines: [],
+        subtotalCents: 0,
+        discountCents: 0,
+        totalCents: 0,
+      });
       setLoading(false);
       setError(false);
       return;
@@ -38,7 +45,7 @@ export default function CartPage() {
     fetch("/api/cart", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items }),
+      body: JSON.stringify({ items, couponCode: coupon }),
     })
       .then((r) => {
         if (!r.ok) throw new Error("pricing failed");
@@ -62,7 +69,7 @@ export default function CartPage() {
     return () => {
       cancelled = true;
     };
-  }, [items, prune]);
+  }, [items, coupon, prune]);
 
   // Quantity inputs are driven by client cart state so they feel instant; line
   // totals and subtotal come from the server.
@@ -81,7 +88,7 @@ export default function CartPage() {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ items, couponCode: coupon }),
       });
       // Checkout requires a logged-in session; send guests to log in and back.
       if (res.status === 401) {
@@ -183,13 +190,71 @@ export default function CartPage() {
           </ul>
 
           <aside className="h-fit rounded-md border p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <span>Subtotal</span>
-              <span className="font-semibold">
-                {loading && !priced
-                  ? "…"
-                  : formatPrice(priced?.subtotalCents ?? 0)}
-              </span>
+            {/* Coupon */}
+            <div className="space-y-1">
+              <label htmlFor="coupon" className="text-sm">
+                Coupon code
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="coupon"
+                  value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value)}
+                  placeholder="Enter code"
+                  className="flex-1 rounded border px-2 py-1 bg-transparent"
+                />
+                <button
+                  onClick={() => setCoupon(couponInput.trim())}
+                  className="rounded border px-3 py-1 text-sm"
+                >
+                  Apply
+                </button>
+              </div>
+              {priced?.coupon?.applied && (
+                <p className="text-xs text-green-700 dark:text-green-400">
+                  Coupon {priced.coupon.code} applied.{" "}
+                  <button
+                    onClick={() => {
+                      setCoupon("");
+                      setCouponInput("");
+                    }}
+                    className="underline"
+                  >
+                    Remove
+                  </button>
+                </p>
+              )}
+              {priced?.coupon && !priced.coupon.applied && (
+                <p className="text-xs text-red-600" role="alert">
+                  {priced.coupon.message}
+                </p>
+              )}
+            </div>
+
+            {/* Totals — all server-computed */}
+            <div className="space-y-1 border-t pt-3">
+              <div className="flex items-center justify-between text-sm">
+                <span>Subtotal</span>
+                <span>
+                  {loading && !priced
+                    ? "…"
+                    : formatPrice(priced?.subtotalCents ?? 0)}
+                </span>
+              </div>
+              {(priced?.discountCents ?? 0) > 0 && (
+                <div className="flex items-center justify-between text-sm text-green-700 dark:text-green-400">
+                  <span>Discount</span>
+                  <span>−{formatPrice(priced?.discountCents ?? 0)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between font-semibold">
+                <span>Total</span>
+                <span>
+                  {loading && !priced
+                    ? "…"
+                    : formatPrice(priced?.totalCents ?? 0)}
+                </span>
+              </div>
             </div>
             <p className="text-xs text-gray-600 dark:text-gray-300">
               Taxes and shipping calculated at checkout.

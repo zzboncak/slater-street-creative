@@ -29,7 +29,19 @@ export type PricedCartLine = {
   lineTotalCents: number;
 };
 
+// Result of applying a coupon code during cart re-pricing. `applied` is false
+// (with a message) when the code is unknown/expired/inactive — the cart is still
+// priced at full price so the shopper can keep going.
+export type CouponStatus = {
+  code: string;
+  applied: boolean;
+  message?: string;
+};
+
 export type PricedCart = {
   lines: PricedCartLine[];
   subtotalCents: number;
+  discountCents: number;
+  totalCents: number;
+  coupon?: CouponStatus;
 };

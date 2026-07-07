@@ -8,13 +8,7 @@ import {
   productImageUrl,
   PRODUCT_IMAGE_PLACEHOLDER,
 } from "@/lib/cloudflare-images";
-
-export function formatPrice(cents: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(cents / 100);
-}
+import { formatPrice } from "@/lib/format";
 
 export default function ProductCard({ product }: { product: Product }) {
   const { add } = useCart();

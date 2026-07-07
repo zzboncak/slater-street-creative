@@ -3,22 +3,13 @@
 import { useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 
+// Rendered by the thank-you page ONLY when a real order owned by the current
+// user has loaded — so clearing the cart on mount is safe (it's gated on a
+// confirmed order server-side, not on the presence of a URL param).
 export default function ClearCartOnMount() {
   const { clear } = useCart();
-
   useEffect(() => {
-    // Clear the cart once when redirected here after placing an order
-    // (/thank-you?order=<id>). Defense-in-depth: checkout also clears before
-    // redirecting, so this is a backstop for direct/refreshed landings.
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("order")) {
-      clear();
-      // Clean up the URL so refreshes don't re-clear
-      const url = new URL(window.location.href);
-      url.searchParams.delete("order");
-      window.history.replaceState({}, "", url.toString());
-    }
+    clear();
   }, [clear]);
-
   return null;
 }
