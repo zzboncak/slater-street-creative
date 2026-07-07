@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getProductById } from "@/lib/products";
 import { ecommerceEnabled } from "@/lib/flags";
+import { formatPrice } from "@/lib/format";
 import AddToCart from "@/components/AddToCart";
 import {
   productImageUrl,
@@ -10,13 +11,6 @@ import {
 } from "@/lib/cloudflare-images";
 
 export const dynamic = "force-dynamic";
-
-function formatPrice(cents: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(cents / 100);
-}
 
 function JsonLd({ data }: { data: unknown }) {
   return (

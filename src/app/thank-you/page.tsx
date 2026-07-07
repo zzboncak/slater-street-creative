@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { ecommerceEnabled } from "@/lib/flags";
+import { formatPrice } from "@/lib/format";
 import ClearCartOnMount from "./safe-clear";
 
 export const metadata = {
@@ -10,21 +11,17 @@ export const metadata = {
 };
 export const dynamic = "force-dynamic";
 
-function formatPrice(cents: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(cents / 100);
-}
-
 export default async function ThankYouPage({
   searchParams,
 }: {
-  searchParams: Promise<{ order?: string }>;
+  searchParams: Promise<{ order?: string | string[] }>;
 }) {
   if (!ecommerceEnabled()) notFound();
 
-  const { order: orderId } = await searchParams;
+  // A repeated query param (?order=a&order=b) arrives as an array — treat only
+  // a single string as a valid id, else fall through to the generic message.
+  const params = await searchParams;
+  const orderId = typeof params.order === "string" ? params.order : undefined;
   const user = await getSessionUser();
 
   // Load the order only if it exists AND belongs to the logged-in user
@@ -51,16 +48,22 @@ export default async function ThankYouPage({
     );
   }
 
-  const confirmed = owned.status !== "PENDING";
+  // Affirmative per-status messaging — never imply payment for a non-paid
+  // state (e.g. a CANCELLED order must not read as "confirmed").
+  const statusMessage: Record<string, string> = {
+    PAID: "payment confirmed.",
+    SHIPPED: "shipped — it’s on the way.",
+    FULFILLED: "delivered.",
+    PENDING: "we’re confirming your payment; this page will update shortly.",
+    CANCELLED: "this order was cancelled.",
+  };
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 space-y-6">
       <div className="space-y-1">
         <h1 className="text-3xl font-semibold">Thank you!</h1>
         <p className="text-sm text-gray-600 dark:text-gray-300">
           Order <span className="font-mono">{owned.id}</span> —{" "}
-          {confirmed
-            ? "payment confirmed."
-            : "we’re confirming your payment; this page will update shortly."}
+          {statusMessage[owned.status] ?? `${owned.status.toLowerCase()}.`}
         </p>
       </div>
 

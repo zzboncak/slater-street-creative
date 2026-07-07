@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useCart } from "@/context/CartContext";
-import { formatPrice } from "@/components/ProductCard";
+import { formatPrice } from "@/lib/format";
 import {
   productImageUrl,
   PRODUCT_IMAGE_PLACEHOLDER,
