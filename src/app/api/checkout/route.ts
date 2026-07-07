@@ -167,9 +167,11 @@ export async function POST(req: Request) {
   // Build a Stripe Checkout Session from the SERVER-computed line items and
   // discount. Idempotency keys (scoped to the order id) make a retry reuse the
   // same coupon/session instead of creating duplicates.
+  // Prefer the configured first-party SITE_URL so redirect targets are
+  // deterministic; fall back to the request origin for local dev.
   const origin =
-    req.headers.get("origin") ||
     process.env.SITE_URL ||
+    req.headers.get("origin") ||
     new URL(req.url).origin;
 
   try {
