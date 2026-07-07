@@ -47,9 +47,6 @@ const nextConfig: NextConfig = {
         : []),
     ],
   },
-  publicRuntimeConfig: {
-    ENABLE_ECOMMERCE: process.env.ENABLE_ECOMMERCE === "true",
-  },
 };
 
 export default nextConfig;

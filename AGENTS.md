@@ -38,6 +38,7 @@ Before finishing any task, run: `npx tsc --noEmit && npm run lint && npm run for
 
 - Money is always integer cents (`priceCents`). Never floats.
 - Server Components by default; add `"use client"` only when needed.
+- Feature flags live in `src/lib/flags.ts` (`ecommerceEnabled()` / `checkoutEnabled()`), read from `NEXT_PUBLIC_*` env vars and **fail-closed** (on only when `=== "true"`). Gate both the UI and the server route — never rely on hidden UI alone, especially for the money path. Don't reintroduce `publicRuntimeConfig` (unsupported in the App Router).
 - Path alias `@/*` → `src/*`.
 - Schema changes: `npx prisma migrate dev --name <descriptive_name>` — never edit applied migrations.
 - Commit messages: short imperative summaries, matching existing history.

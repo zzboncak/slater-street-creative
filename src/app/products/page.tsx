@@ -1,10 +1,14 @@
+import { notFound } from "next/navigation";
 import ProductCard from "@/components/ProductCard";
 import { getActiveProducts } from "@/lib/products";
+import { ecommerceEnabled } from "@/lib/flags";
 
 export const metadata = { title: "Products" };
 export const dynamic = "force-dynamic";
 
 export default async function ProductsPage() {
+  // Purchasable inventory is part of the gated commerce surface.
+  if (!ecommerceEnabled()) notFound();
   const list = await getActiveProducts();
 
   return (

@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useCart } from "@/context/CartContext";
-
-const ENABLE_ECOMMERCE = process.env.NEXT_PUBLIC_ENABLE_ECOMMERCE === "true";
+import { ecommerceEnabled } from "@/lib/flags";
 
 export default function Header() {
   const { count } = useCart();
@@ -44,7 +43,7 @@ export default function Header() {
           <Link href="/candles" className="hover:underline">
             Candles
           </Link>
-          {ENABLE_ECOMMERCE && (
+          {ecommerceEnabled() && (
             <>
               <Link href="/products" className="hover:underline">
                 Products

@@ -2,13 +2,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { getFeaturedProducts } from "@/lib/products";
 import ProductCard from "@/components/ProductCard";
-import getConfig from "next/config";
-
-const { publicRuntimeConfig } = getConfig();
-const { ENABLE_ECOMMERCE } = publicRuntimeConfig;
+import { ecommerceEnabled } from "@/lib/flags";
 
 export default async function Home() {
-  if (!ENABLE_ECOMMERCE) {
+  if (!ecommerceEnabled()) {
     return (
       <div>
         <section className="relative isolate">

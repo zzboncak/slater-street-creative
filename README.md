@@ -68,6 +68,26 @@ with those credentials, then visit http://localhost:3000/admin
 - `src/middleware.ts` – Session-cookie gate for `/admin` (redirects to `/login`)
 - `src/app/admin/*` – Admin pages (products, inventory, coupons)
 
+## Feature flags
+
+The storefront's commerce surface is behind fail-closed feature flags
+(`src/lib/flags.ts`), so it can ship to prod hidden while you keep developing.
+A flag is **on only when its value is exactly `"true"`**; unset = off.
+
+```
+NEXT_PUBLIC_ENABLE_ECOMMERCE=true   # product browsing, add-to-cart, cart, /api/cart
+NEXT_PUBLIC_ENABLE_CHECKOUT=true    # checkout button + /api/checkout (payment)
+```
+
+- With both **unset** (prod default), the public site is just the landing,
+  about, and candle-scent pages; `/products`, `/products/[id]`, and `/cart`
+  return 404 and the commerce API routes 404.
+- **Taking a real payment requires BOTH flags on** — `checkout` is an
+  independent lock so money stays gated even after the rest of the store is
+  switched on. Set both in your local `.env` to work on checkout.
+- Every server route re-checks its flag, so the UI gate is never the only
+  protection. To go live, set the flags in Vercel (triggers a rebuild).
+
 ## Payments (Stripe Checkout)
 
 Payment uses **Stripe-hosted Checkout** — Stripe handles card data/PCI; we keep

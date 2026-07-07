@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getActiveProductsByIds } from "@/lib/products";
 import { normalizeRequestedItems } from "@/lib/pricing";
+import { ecommerceEnabled } from "@/lib/flags";
 import type { PricedCart } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,14 @@ export const dynamic = "force-dynamic";
  * amounts computed from current DB prices. Unknown/inactive products are dropped.
  */
 export async function POST(req: Request) {
+  // Part of the gated commerce surface — hidden when e-commerce is off.
+  if (!ecommerceEnabled()) {
+    return NextResponse.json(
+      { error: "Not found", code: "ecommerce_disabled" },
+      { status: 404 },
+    );
+  }
+
   const body = await req.json().catch(() => null);
   const wanted = normalizeRequestedItems(body);
 

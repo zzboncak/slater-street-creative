@@ -2,6 +2,7 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getProductById } from "@/lib/products";
+import { ecommerceEnabled } from "@/lib/flags";
 import AddToCart from "@/components/AddToCart";
 import {
   productImageUrl,
@@ -71,6 +72,8 @@ export default async function ProductDetailsPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  // Purchasable inventory is part of the gated commerce surface.
+  if (!ecommerceEnabled()) notFound();
   const { id } = await params;
   const product = await getProductById(id);
   if (!product) return notFound();
