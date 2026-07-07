@@ -19,7 +19,8 @@
     "next": "^15.5.5",
     "prisma": "^6.13.0",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "stripe": "^22.3.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

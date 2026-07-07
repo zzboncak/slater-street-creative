@@ -3,15 +3,19 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { formatPrice } from "@/components/ProductCard";
 import {
   productImageUrl,
   PRODUCT_IMAGE_PLACEHOLDER,
 } from "@/lib/cloudflare-images";
+import { ecommerceEnabled, checkoutEnabled } from "@/lib/flags";
 import type { PricedCart } from "@/types";
 
 export default function CartPage() {
+  // The cart is part of the gated commerce surface.
+  if (!ecommerceEnabled()) notFound();
   const { items, remove, setQty, clear, prune } = useCart();
   const [priced, setPriced] = useState<PricedCart | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,15 +89,16 @@ export default function CartPage() {
         return;
       }
       const data = await res.json().catch(() => null);
-      if (!res.ok) {
+      if (!res.ok || !data?.url) {
         setCheckoutError(
           data?.error ?? "Sorry — checkout failed. Please try again.",
         );
         return;
       }
-      // Order placed: clear the cart and go to the confirmation page.
-      clear();
-      window.location.href = `/thank-you?order=${data.id}`;
+      // Hand off to Stripe-hosted Checkout. Don't clear the cart here — a
+      // cancelled payment returns to /cart with items intact; the cart is
+      // cleared on the /thank-you?order= landing after a successful payment.
+      window.location.href = data.url;
     } catch {
       setCheckoutError("Sorry — checkout failed. Please try again.");
     } finally {
@@ -194,13 +199,19 @@ export default function CartPage() {
                 {checkoutError}
               </p>
             )}
-            <button
-              onClick={handleCheckout}
-              disabled={checkingOut || loading}
-              className="w-full rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 font-medium disabled:opacity-50"
-            >
-              {checkingOut ? "Placing order…" : "Checkout"}
-            </button>
+            {checkoutEnabled() ? (
+              <button
+                onClick={handleCheckout}
+                disabled={checkingOut || loading}
+                className="w-full rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 font-medium disabled:opacity-50"
+              >
+                {checkingOut ? "Placing order…" : "Checkout"}
+              </button>
+            ) : (
+              <p className="rounded-md border border-black/10 dark:border-white/15 px-4 py-2 text-center text-sm text-gray-600 dark:text-gray-300">
+                Checkout is coming soon.
+              </p>
+            )}
             <button onClick={clear} className="w-full text-sm underline">
               Clear cart
             </button>
