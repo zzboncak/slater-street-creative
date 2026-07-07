@@ -10,6 +10,11 @@ import {
 
 export const dynamic = "force-dynamic";
 
+// Stripe's minimum charge for USD is $0.50. A total below this (including $0
+// from a full-value coupon) can't create a payable Checkout Session, so we
+// reject it up front rather than committing an order that could never be paid.
+const MIN_CHARGE_CENTS = 50;
+
 // Thrown inside the transaction to abort it and map to an HTTP response.
 class CheckoutError extends Error {
   constructor(
@@ -135,6 +140,17 @@ export async function POST(req: Request) {
       }
 
       const totalCents = Math.max(0, subtotalCents - discountCents);
+
+      // Reject before creating the order (fail-closed, no orphan PENDING order)
+      // if the discounted total is below what Stripe can charge. Free/near-free
+      // orders (e.g. a 100%-off coupon) need dedicated handling — see follow-up.
+      if (totalCents < MIN_CHARGE_CENTS) {
+        throw new CheckoutError(
+          400,
+          "below_minimum",
+          "Your order total is below the $0.50 minimum we can process.",
+        );
+      }
 
       const order = await tx.order.create({
         data: {
