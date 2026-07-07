@@ -16,6 +16,8 @@ export default function CartPage() {
   const [priced, setPriced] = useState<PricedCart | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   // Re-price from the server whenever the cart changes. Money is never computed
   // client-side; we only send { productId, quantity } and render what comes back.
@@ -69,10 +71,33 @@ export default function CartPage() {
   const lines = priced?.lines ?? [];
 
   async function handleCheckout() {
-    const res = await fetch("/api/checkout", { method: "POST" });
-    if (res.ok) {
-      const { url } = await res.json();
-      if (url) window.location.href = url;
+    setCheckingOut(true);
+    setCheckoutError(null);
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items }),
+      });
+      // Checkout requires a logged-in session; send guests to log in and back.
+      if (res.status === 401) {
+        window.location.href = "/login?next=/cart";
+        return;
+      }
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setCheckoutError(
+          data?.error ?? "Sorry — checkout failed. Please try again.",
+        );
+        return;
+      }
+      // Order placed: clear the cart and go to the confirmation page.
+      clear();
+      window.location.href = `/thank-you?order=${data.id}`;
+    } catch {
+      setCheckoutError("Sorry — checkout failed. Please try again.");
+    } finally {
+      setCheckingOut(false);
     }
   }
 
@@ -164,11 +189,17 @@ export default function CartPage() {
             <p className="text-xs text-gray-600 dark:text-gray-300">
               Taxes and shipping calculated at checkout.
             </p>
+            {checkoutError && (
+              <p className="text-sm text-red-600" role="alert">
+                {checkoutError}
+              </p>
+            )}
             <button
               onClick={handleCheckout}
-              className="w-full rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 font-medium"
+              disabled={checkingOut || loading}
+              className="w-full rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 font-medium disabled:opacity-50"
             >
-              Checkout
+              {checkingOut ? "Placing order…" : "Checkout"}
             </button>
             <button onClick={clear} className="w-full text-sm underline">
               Clear cart

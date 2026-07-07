@@ -18,11 +18,11 @@ Snapshot audit after ~1 year untouched. TypeScript compiles clean (`tsc --noEmit
 
 **B1. ~~Two sources of truth for products.~~ Partially resolved (SSC-6a).** The mock (`src/data/products.ts`) is deleted; all storefront pages read the DB via `src/lib/products.ts`, and the UI `Product` type is derived from Prisma (`priceCents`/`scentProfile`, no `as unknown as`). Still open: the cart persists full product objects with prices in localStorage — switching to `productId`+`quantity` with server-side re-pricing is SSC-6b (see B4).
 
-**B2. Checkout is a stub.** `/api/checkout` still returns a fake thank-you URL. The **`Order`/`OrderItem` models now exist** (SSC-11) — status enum PENDING/PAID/SHIPPED/FULFILLED/CANCELLED, cents totals, coupon + shipping-address + price/name snapshots, `stripeCheckoutSessionId`. Still open: wiring checkout to actually create orders (server-side re-pricing → order + Stripe session) is SSC-12.
+**B2. ~~Checkout is a stub.~~ Resolved (SSC-12).** `POST /api/checkout` now re-prices the cart from the DB, validates availability + coupon, and creates a PENDING `Order` + `OrderItem`s in a transaction (models from SSC-11). Still open: taking payment — the Stripe Checkout session + `PAID` webhook is SSC-13.
 
-**B3. Coupons and inventory are decorative.** Admin CRUD exists but coupons are never applied and inventory is never decremented or checked at purchase time.
+**B3. ~~Coupons and inventory are decorative.~~ Partially resolved (SSC-12).** Checkout now validates coupons (active + date window, integer-cents discount) and rejects quantities exceeding inventory. Still open: inventory is validated but **not decremented** — stock is committed at payment (SSC-13); coupons are not yet applied in the cart UI.
 
-**B4. Cart trusts client-side prices.** Full product objects (including price) live in localStorage. Checkout must re-price everything server-side from the DB.
+**B4. ~~Cart trusts client-side prices.~~ Resolved (SSC-6b, SSC-12).** The cart persists only `{ productId, quantity }`; both cart display (`/api/cart`) and checkout (`/api/checkout`) re-price server-side from the DB. Client-supplied prices are never read.
 
 **B5. ~~No tests, no CI.~~ Resolved (SSC-9).** Vitest configured (`npm test`) with first tests for `src/lib/auth.ts` (hash/verify roundtrip, malformed JWT → null) and the cart reducer. `.gitignore` now allows `.github/workflows/`, and a GitHub Actions workflow runs typecheck + lint + test on pushes to `main` and every PR.
 
