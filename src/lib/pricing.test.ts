@@ -86,6 +86,16 @@ describe("computeDiscountCents", () => {
     ).toBe(1000);
   });
 
+  it("treats percentOff: 0 / amountOff: 0 as valid zero-discount (not falsy-skipped)", () => {
+    // 0 is `!= null`, so it must be honored as a real 0% / $0 coupon.
+    expect(computeDiscountCents(1000, { percentOff: 0, amountOff: null })).toBe(
+      0,
+    );
+    expect(computeDiscountCents(1000, { percentOff: null, amountOff: 0 })).toBe(
+      0,
+    );
+  });
+
   it("returns 0 when there is no coupon effect or no subtotal", () => {
     expect(
       computeDiscountCents(1000, { percentOff: null, amountOff: null }),

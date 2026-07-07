@@ -18,6 +18,7 @@ class CheckoutError extends Error {
     public data?: Record<string, unknown>,
   ) {
     super(message);
+    this.name = "CheckoutError";
   }
 }
 
