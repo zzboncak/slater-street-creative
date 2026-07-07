@@ -111,11 +111,33 @@ returns `503`.
 Test end-to-end with Stripe test card `4242 4242 4242 4242` (any future expiry,
 any CVC).
 
+### Payment confirmation (webhook)
+
+Payment truth comes from Stripe's webhook, **not** the browser redirect.
+`POST /api/stripe/webhook` verifies the signature (`STRIPE_WEBHOOK_SECRET`) and,
+on a paid `checkout.session.completed`, marks the order `PAID` and decrements
+inventory in one idempotent transaction (retries never double-decrement; stock
+floors at 0 with a logged oversell warning).
+
+Test locally with the Stripe CLI:
+
+```
+# 1. Forward events to the local webhook; copy the printed whsec_... secret
+stripe listen --forward-to localhost:3000/api/stripe/webhook
+
+# 2. Put that secret in .env, then (re)start the app
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# 3. Do a real test checkout (card 4242...) and complete payment.
+#    The order flips PENDING -> PAID and its items' inventory drops.
+```
+
+`stripe trigger checkout.session.completed` also fires the event, but it carries
+no real order (no `orderId` metadata), so the handler safely no-ops on it — use
+an actual checkout to see the order/inventory update.
+
 ## Future backend
 
-- **`/api/stripe/webhook`** to verify payment (`checkout.session.completed`),
-  mark the order `PAID`, and decrement inventory — the order stays `PENDING`
-  until this lands (next ticket).
 - Admin pages for orders.
 
 ## Local Postgres via Docker (Recommended for Dev)

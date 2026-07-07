@@ -20,7 +20,7 @@ Snapshot audit after ~1 year untouched. TypeScript compiles clean (`tsc --noEmit
 
 **B2. ~~Checkout is a stub.~~ Resolved (SSC-12).** `POST /api/checkout` now re-prices the cart from the DB, validates availability + coupon, and creates a PENDING `Order` + `OrderItem`s in a transaction (models from SSC-11). Still open: taking payment — the Stripe Checkout session + `PAID` webhook is SSC-13.
 
-**B3. ~~Coupons and inventory are decorative.~~ Partially resolved (SSC-12).** Checkout now validates coupons (active + date window, integer-cents discount) and rejects quantities exceeding inventory. Still open: inventory is validated but **not decremented** — stock is committed at payment (SSC-13); coupons are not yet applied in the cart UI.
+**B3. ~~Coupons and inventory are decorative.~~ Resolved (SSC-12 + SSC-14).** Checkout validates coupons (active + date window, integer-cents discount) and rejects quantities exceeding inventory (SSC-12); the Stripe webhook (`/api/stripe/webhook`, SSC-14) marks the order PAID and **decrements inventory** atomically/idempotently on payment, flooring at 0 with a logged oversell warning. Remaining nicety (not decorative): no coupon-entry field in the cart UI yet.
 
 **B4. ~~Cart trusts client-side prices.~~ Resolved (SSC-6b, SSC-12).** The cart persists only `{ productId, quantity }`; both cart display (`/api/cart`) and checkout (`/api/checkout`) re-price server-side from the DB. Client-supplied prices are never read.
 
