@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
-import { applyInventoryDelta } from "@/lib/inventory";
 
 export const dynamic = "force-dynamic";
 
@@ -69,29 +68,44 @@ async function fulfillPaidOrder(orderId: string) {
       where: { id: orderId, status: "PENDING" },
       data: { status: "PAID" },
     });
-    if (claimed.count === 0) return; // already processed, or not a pending order
+    if (claimed.count === 0) {
+      // Not PENDING: usually an idempotent replay of an already-PAID order. But
+      // a paid webhook for a CANCELLED order means money came in with nothing to
+      // fulfill — surface it for manual refund/reconciliation.
+      const existing = await tx.order.findUnique({
+        where: { id: orderId },
+        select: { status: true },
+      });
+      if (existing?.status === "CANCELLED") {
+        console.warn(
+          `[stripe-webhook] paid webhook for CANCELLED order ${orderId} — needs manual reconciliation/refund`,
+        );
+      }
+      return;
+    }
 
     const items = await tx.orderItem.findMany({ where: { orderId } });
     for (const item of items) {
       if (!item.productId) continue; // product deleted; order snapshot stands
-      const inv = await tx.inventory.findUnique({
+      // Atomic decrement (SET quantity = quantity - n) — the DB row lock makes
+      // concurrent orders for the same product serialize, so there's no
+      // read-compute-write lost update. It can go negative on a genuine
+      // oversell, which we then floor to 0 (still inside the row lock).
+      const updated = await tx.inventory.upsert({
         where: { productId: item.productId },
+        update: { quantity: { decrement: item.quantity } },
+        create: { productId: item.productId, quantity: 0 },
       });
-      const { next, oversold } = applyInventoryDelta(
-        inv?.quantity ?? 0,
-        item.quantity,
-      );
-      if (oversold) {
+      if (updated.quantity < 0) {
         console.warn(
           `[stripe-webhook] oversell on product ${item.productId} (order ${orderId}): ` +
-            `stock ${inv?.quantity ?? 0}, ordered ${item.quantity} — flooring at 0`,
+            `short by ${-updated.quantity} — flooring at 0`,
         );
+        await tx.inventory.update({
+          where: { productId: item.productId },
+          data: { quantity: 0 },
+        });
       }
-      await tx.inventory.upsert({
-        where: { productId: item.productId },
-        update: { quantity: next },
-        create: { productId: item.productId, quantity: next },
-      });
     }
   });
 }
