@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { getStripe } from "@/lib/stripe";
-import { checkoutEnabled } from "@/lib/flags";
+import { checkoutEnabled, ecommerceEnabled } from "@/lib/flags";
 import {
   normalizeRequestedItems,
   computeDiscountCents,
@@ -40,10 +40,10 @@ class CheckoutError extends Error {
  * Returns { url } — the Stripe Checkout URL to redirect the browser to.
  */
 export async function POST(req: Request) {
-  // Money path — fail closed. When checkout is gated off (prod for now) the
-  // endpoint doesn't exist as far as clients are concerned, so a hidden button
-  // is never the only protection.
-  if (!checkoutEnabled()) {
+  // Money path — fail closed. Taking a payment requires BOTH the commerce
+  // surface AND checkout to be enabled, enforced server-side (not just config
+  // discipline), so a hidden button is never the only protection.
+  if (!ecommerceEnabled() || !checkoutEnabled()) {
     return NextResponse.json(
       { error: "Checkout is not available.", code: "checkout_disabled" },
       { status: 404 },
