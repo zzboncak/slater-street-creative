@@ -24,6 +24,7 @@ enum OrderStatus {
   SHIPPED
   FULFILLED
   CANCELLED
+  EXPIRED // a PENDING order swept as abandoned (never paid) — see SSC-26
 }
 
 model Product {

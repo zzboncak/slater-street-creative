@@ -56,6 +56,7 @@ export default async function ThankYouPage({
     FULFILLED: "delivered.",
     PENDING: "we’re confirming your payment; this page will update shortly.",
     CANCELLED: "this order was cancelled.",
+    EXPIRED: "this order expired before payment.",
   };
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 space-y-6">
