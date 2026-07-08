@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -13,6 +13,16 @@ import {
 import { ecommerceEnabled, checkoutEnabled } from "@/lib/flags";
 import type { PricedCart } from "@/types";
 
+// A per-attempt idempotency token (SSC-28). Reused across retries of the same
+// cart so a failed/5xx checkout doesn't mint a duplicate PENDING order; rotated
+// whenever the cart changes (below) so a new cart starts a new order.
+function newCheckoutToken(): string {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `ct_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
 export default function CartPage() {
   // The cart is part of the gated commerce surface.
   if (!ecommerceEnabled()) notFound();
@@ -24,6 +34,14 @@ export default function CartPage() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [couponInput, setCouponInput] = useState("");
   const [coupon, setCoupon] = useState(""); // committed code sent to the server
+  const checkoutTokenRef = useRef<string | null>(null);
+
+  // Rotate the checkout idempotency token whenever the cart contents change, so
+  // a retry of the same cart reuses one PENDING order (SSC-28) while a changed
+  // cart starts a fresh one.
+  useEffect(() => {
+    checkoutTokenRef.current = newCheckoutToken();
+  }, [items, coupon]);
 
   // Re-price from the server whenever the cart changes. Money is never computed
   // client-side; we only send { productId, quantity } and render what comes back.
@@ -84,11 +102,14 @@ export default function CartPage() {
   async function handleCheckout() {
     setCheckingOut(true);
     setCheckoutError(null);
+    // Reuse the same token across retries of this cart so a failed attempt
+    // doesn't create a second order (SSC-28).
+    const checkoutToken = (checkoutTokenRef.current ??= newCheckoutToken());
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items, couponCode: coupon }),
+        body: JSON.stringify({ items, couponCode: coupon, checkoutToken }),
       });
       // Checkout requires a logged-in session; send guests to log in and back.
       if (res.status === 401) {
@@ -96,6 +117,13 @@ export default function CartPage() {
         return;
       }
       const data = await res.json().catch(() => null);
+      // A stale/conflicting token (expired session, or the astronomically
+      // unlikely collision): rotate it so the next click starts a fresh order.
+      if (res.status === 409) {
+        checkoutTokenRef.current = newCheckoutToken();
+        setCheckoutError(data?.error ?? "Please try checking out again.");
+        return;
+      }
       if (!res.ok || !data?.url) {
         setCheckoutError(
           data?.error ?? "Sorry — checkout failed. Please try again.",

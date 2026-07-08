@@ -129,6 +129,11 @@ model Order {
 
   stripeCheckoutSessionId String? @unique // webhook idempotency
 
+  // Client-supplied checkout idempotency token (SSC-28): a retry with the same
+  // token reuses this order instead of minting a duplicate PENDING one. Nullable
+  // — tokenless requests and pre-SSC-28 orders simply don't dedup.
+  checkoutToken String? @unique
+
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
   items     OrderItem[]

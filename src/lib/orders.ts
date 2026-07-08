@@ -1,8 +1,40 @@
-import type { PrismaClient } from "@prisma/client";
+import type { OrderStatus, PrismaClient } from "@prisma/client";
 
 // Accepts the global prisma client or a transaction client — both expose `.order`.
 type OrderDb = Pick<PrismaClient, "order">;
 type InventoryDb = Pick<PrismaClient, "inventory">;
+
+/**
+ * Decide what a checkout request should do when an order already exists for the
+ * caller's idempotency token (SSC-28). Pure, so the branch logic is unit-tested:
+ *  - null                     → no prior order; create a fresh one.
+ *  - PENDING                  → reuse it (replay the Stripe session; no new order).
+ *  - PAID / SHIPPED / FULFILLED → already settled; the retry is an idempotent
+ *                               success (redirect straight to the confirmation).
+ *  - CANCELLED / EXPIRED      → terminal (e.g. swept as abandoned long after the
+ *                               attempt); the token is stale, so start over.
+ */
+export type CheckoutReuse =
+  | { kind: "create" }
+  | { kind: "reuse"; orderId: string }
+  | { kind: "paid"; orderId: string }
+  | { kind: "stale"; status: OrderStatus };
+
+export function classifyExistingCheckout(
+  existing: { id: string; status: OrderStatus } | null,
+): CheckoutReuse {
+  if (!existing) return { kind: "create" };
+  switch (existing.status) {
+    case "PENDING":
+      return { kind: "reuse", orderId: existing.id };
+    case "PAID":
+    case "SHIPPED":
+    case "FULFILLED":
+      return { kind: "paid", orderId: existing.id };
+    default: // CANCELLED / EXPIRED
+      return { kind: "stale", status: existing.status };
+  }
+}
 
 /**
  * Sweep abandoned checkouts: mark every PENDING order older than
