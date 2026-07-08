@@ -3,15 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { getStripe } from "@/lib/stripe";
 import { checkoutEnabled, ecommerceEnabled } from "@/lib/flags";
-import { normalizeRequestedItems } from "@/lib/pricing";
+import { normalizeRequestedItems, classifyTotal } from "@/lib/pricing";
 import { resolveCoupon } from "@/lib/coupons";
+import { decrementInventoryForItems } from "@/lib/orders";
 
 export const dynamic = "force-dynamic";
-
-// Stripe's minimum charge for USD is $0.50. A total below this (including $0
-// from a full-value coupon) can't create a payable Checkout Session, so we
-// reject it up front rather than committing an order that could never be paid.
-const MIN_CHARGE_CENTS = 50;
 
 // Thrown inside the transaction to abort it and map to an HTTP response.
 class CheckoutError extends Error {
@@ -67,16 +63,6 @@ export async function POST(req: Request) {
     typeof body?.couponCode === "string"
       ? body.couponCode.trim().toUpperCase()
       : null;
-
-  // Fail before creating an order if payments aren't configured, so we never
-  // leave an orphan PENDING order that can't be paid.
-  const stripe = getStripe();
-  if (!stripe) {
-    return NextResponse.json(
-      { error: "Payments are not configured.", code: "payments_unconfigured" },
-      { status: 503 },
-    );
-  }
 
   let created;
   try {
@@ -146,11 +132,11 @@ export async function POST(req: Request) {
       }
 
       const totalCents = Math.max(0, subtotalCents - discountCents);
+      const outcome = classifyTotal(totalCents);
 
-      // Reject before creating the order (fail-closed, no orphan PENDING order)
-      // if the discounted total is below what Stripe can charge. Free/near-free
-      // orders (e.g. a 100%-off coupon) need dedicated handling — see follow-up.
-      if (totalCents < MIN_CHARGE_CENTS) {
+      // 1–49¢: Stripe can't charge it and it isn't free. Block with a clear
+      // message (no orphan order — we throw before creating one).
+      if (outcome === "below_minimum") {
         throw new CheckoutError(
           400,
           "below_minimum",
@@ -158,11 +144,26 @@ export async function POST(req: Request) {
         );
       }
 
+      const isFree = outcome === "free";
+
+      // A chargeable order needs Stripe configured; reject before creating the
+      // order so a misconfiguration can't leave an orphan PENDING order. A free
+      // order needs no charge, so it doesn't require Stripe at all.
+      if (!isFree && !getStripe()) {
+        throw new CheckoutError(
+          503,
+          "payments_unconfigured",
+          "Payments are not configured.",
+        );
+      }
+
       const order = await tx.order.create({
         data: {
           customerId: user.customerId ?? null,
           email: user.email,
-          status: "PENDING",
+          // A free order is settled on creation ("paid" for $0); a chargeable
+          // one stays PENDING until the Stripe webhook confirms payment.
+          status: isFree ? "PAID" : "PENDING",
           subtotalCents,
           discountCents,
           totalCents,
@@ -174,7 +175,19 @@ export async function POST(req: Request) {
         select: { id: true },
       });
 
-      return { orderId: order.id, lineData, discountCents, couponSnapshotCode };
+      // Free order: no payment webhook will ever fire, so commit inventory now
+      // (the chargeable path defers this to the webhook on the paid event).
+      if (isFree) {
+        await decrementInventoryForItems(tx, lineData, order.id);
+      }
+
+      return {
+        orderId: order.id,
+        lineData,
+        discountCents,
+        couponSnapshotCode,
+        isFree,
+      };
     });
   } catch (e) {
     if (e instanceof CheckoutError) {
@@ -184,6 +197,26 @@ export async function POST(req: Request) {
       );
     }
     throw e; // unexpected → 500
+  }
+
+  // Free order ($0 after a full-value coupon): already PAID with inventory
+  // committed — no charge to collect. Send the browser straight to the
+  // confirmation page (reuses the cart button's `{ url }` redirect).
+  if (created.isFree) {
+    return NextResponse.json(
+      { url: `/thank-you?order=${created.orderId}`, orderId: created.orderId },
+      { status: 201 },
+    );
+  }
+
+  const stripe = getStripe();
+  if (!stripe) {
+    // Chargeable orders check this inside the transaction; this is a safety net
+    // (the PENDING order would be swept by the daily cron if it ever hits).
+    return NextResponse.json(
+      { error: "Payments are not configured.", code: "payments_unconfigured" },
+      { status: 503 },
+    );
   }
 
   // Build a Stripe Checkout Session from the SERVER-computed line items and

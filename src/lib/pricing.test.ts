@@ -3,6 +3,7 @@ import {
   normalizeRequestedItems,
   computeDiscountCents,
   couponValidNow,
+  classifyTotal,
   MAX_QTY,
 } from "./pricing";
 
@@ -86,6 +87,12 @@ describe("computeDiscountCents", () => {
     ).toBe(1000);
   });
 
+  it("a 100%-off coupon discounts the whole subtotal (total → 0 / free order)", () => {
+    expect(
+      computeDiscountCents(3000, { percentOff: 100, amountOff: null }),
+    ).toBe(3000);
+  });
+
   it("treats percentOff: 0 / amountOff: 0 as valid zero-discount (not falsy-skipped)", () => {
     // 0 is `!= null`, so it must be honored as a real 0% / $0 coupon.
     expect(computeDiscountCents(1000, { percentOff: 0, amountOff: null })).toBe(
@@ -150,5 +157,22 @@ describe("couponValidNow", () => {
         now,
       ),
     ).toBe(true);
+  });
+});
+
+describe("classifyTotal", () => {
+  it("classifies a $0 total as free", () => {
+    expect(classifyTotal(0)).toBe("free");
+    expect(classifyTotal(-10)).toBe("free"); // defensive; totals are floored at 0
+  });
+
+  it("classifies 1–49¢ as below_minimum", () => {
+    expect(classifyTotal(1)).toBe("below_minimum");
+    expect(classifyTotal(49)).toBe("below_minimum");
+  });
+
+  it("classifies 50¢ and up as chargeable", () => {
+    expect(classifyTotal(50)).toBe("chargeable");
+    expect(classifyTotal(3000)).toBe("chargeable");
   });
 });

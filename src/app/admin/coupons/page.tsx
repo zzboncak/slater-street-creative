@@ -33,12 +33,15 @@ export default async function AdminCouponsPage() {
             name="percentOff"
             placeholder="Percent off (0-100)"
             type="number"
+            min={0}
+            max={100}
             className="border rounded px-2 py-1"
           />
           <input
             name="amountOff"
             placeholder="Amount off (cents)"
             type="number"
+            min={0}
             className="border rounded px-2 py-1"
           />
           <input
@@ -120,8 +123,8 @@ async function createCoupon(formData: FormData) {
   const code = String(formData.get("code") || "")
     .trim()
     .toUpperCase();
-  const percentOff = formData.get("percentOff");
-  const amountOff = formData.get("amountOff");
+  const percentRaw = Number(formData.get("percentOff"));
+  const amountRaw = Number(formData.get("amountOff"));
   const description = String(formData.get("description") || "").trim() || null;
   const validFromStr = String(formData.get("validFrom") || "");
   const validToStr = String(formData.get("validTo") || "");
@@ -129,8 +132,16 @@ async function createCoupon(formData: FormData) {
     code,
     description,
     active: true,
-    percentOff: percentOff ? Number(percentOff) : null,
-    amountOff: amountOff ? Number(amountOff) : null,
+    // Cap percentOff at 100 and floor both at 0, so an out-of-range coupon can't
+    // be created (a >100% coupon would over-discount an order; SSC-23).
+    percentOff:
+      formData.get("percentOff") && Number.isFinite(percentRaw)
+        ? Math.min(100, Math.max(0, Math.round(percentRaw)))
+        : null,
+    amountOff:
+      formData.get("amountOff") && Number.isFinite(amountRaw)
+        ? Math.max(0, Math.round(amountRaw))
+        : null,
     validFrom: validFromStr ? new Date(validFromStr) : null,
     validTo: validToStr ? new Date(validToStr) : null,
   };
