@@ -337,12 +337,23 @@ export async function POST(req: Request) {
         select: {
           id: true,
           status: true,
+          email: true,
+          customerId: true,
           discountCents: true,
           couponCode: true,
         },
       });
+      // Apply the same owner + reusable-status checks as the in-transaction
+      // reuse branch, so the race-recovery path can never resolve to another
+      // user's order (defense in depth — UUID tokens already make a foreign hit
+      // effectively impossible).
+      const owned =
+        !!existing &&
+        (existing.email === user.email ||
+          (!!user.customerId && existing.customerId === user.customerId));
       if (
         existing &&
+        owned &&
         existing.status !== "CANCELLED" &&
         existing.status !== "EXPIRED"
       ) {
