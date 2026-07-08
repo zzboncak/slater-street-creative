@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { expireStalePendingOrders } from "./orders";
+import { expireStalePendingOrders, markOrderFulfilled } from "./orders";
 
 function makeDb(count: number) {
   const updateMany = vi.fn().mockResolvedValue({ count });
@@ -39,5 +39,28 @@ describe("expireStalePendingOrders", () => {
   it("returns 0 when nothing is stale", async () => {
     const { db } = makeDb(0);
     expect(await expireStalePendingOrders(db, 24, now)).toBe(0);
+  });
+});
+
+describe("markOrderFulfilled", () => {
+  it("transitions a PAID order to FULFILLED (status only) and returns true", async () => {
+    const { db, updateMany } = makeDb(1);
+    expect(await markOrderFulfilled(db, "ord_1")).toBe(true);
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: "ord_1", status: "PAID" },
+      data: { status: "FULFILLED" },
+    });
+  });
+
+  it("is a no-op (returns false) for a non-PAID order", async () => {
+    // updateMany matches 0 rows when the order isn't PAID (PENDING/FULFILLED/etc).
+    const { db } = makeDb(0);
+    expect(await markOrderFulfilled(db, "ord_1")).toBe(false);
+  });
+
+  it("only ever changes status — no money fields in the update", async () => {
+    const { db, updateMany } = makeDb(1);
+    await markOrderFulfilled(db, "ord_1");
+    expect(Object.keys(updateMany.mock.calls[0][0].data)).toEqual(["status"]);
   });
 });

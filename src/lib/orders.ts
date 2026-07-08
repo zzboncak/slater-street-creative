@@ -23,3 +23,19 @@ export async function expireStalePendingOrders(
   });
   return result.count;
 }
+
+/**
+ * Mark a PAID order FULFILLED. Compare-and-set on status — only a PAID order can
+ * transition, and this touches nothing but `status`, so orders stay immutable
+ * financial records (no money fields ever change). Returns whether it transitioned.
+ */
+export async function markOrderFulfilled(
+  db: OrderDb,
+  orderId: string,
+): Promise<boolean> {
+  const result = await db.order.updateMany({
+    where: { id: orderId, status: "PAID" },
+    data: { status: "FULFILLED" },
+  });
+  return result.count > 0;
+}
