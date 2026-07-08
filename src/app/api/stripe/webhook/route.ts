@@ -55,6 +55,10 @@ export async function POST(req: Request) {
     if (event.type === "checkout.session.async_payment_failed") {
       // Definitive failure — cancel the order; never touch inventory.
       if (orderId) await cancelPendingOrder(orderId);
+      else
+        console.warn(
+          `[stripe-webhook] ${event.type} for session ${session.id} had no orderId metadata`,
+        );
     } else {
       // completed or async_payment_succeeded. Treat as paid only when the
       // session is actually paid: a `completed` event for an unpaid async
