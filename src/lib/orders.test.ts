@@ -3,6 +3,7 @@ import {
   expireStalePendingOrders,
   markOrderFulfilled,
   decrementInventoryForItems,
+  classifyExistingCheckout,
 } from "./orders";
 
 function makeDb(count: number) {
@@ -120,5 +121,36 @@ describe("decrementInventoryForItems", () => {
       "o",
     );
     expect(upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("classifyExistingCheckout", () => {
+  it("creates a fresh order when the token has no prior order", () => {
+    expect(classifyExistingCheckout(null)).toEqual({ kind: "create" });
+  });
+
+  it("reuses a still-PENDING order (retry replays it, no duplicate)", () => {
+    expect(classifyExistingCheckout({ id: "o1", status: "PENDING" })).toEqual({
+      kind: "reuse",
+      orderId: "o1",
+    });
+  });
+
+  it("treats a settled order as an idempotent success", () => {
+    for (const status of ["PAID", "SHIPPED", "FULFILLED"] as const) {
+      expect(classifyExistingCheckout({ id: "o1", status })).toEqual({
+        kind: "paid",
+        orderId: "o1",
+      });
+    }
+  });
+
+  it("treats a terminal order as stale (start over)", () => {
+    for (const status of ["CANCELLED", "EXPIRED"] as const) {
+      expect(classifyExistingCheckout({ id: "o1", status })).toEqual({
+        kind: "stale",
+        status,
+      });
+    }
   });
 });

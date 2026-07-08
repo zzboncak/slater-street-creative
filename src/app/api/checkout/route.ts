@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
+import type { OrderStatus, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { getStripe } from "@/lib/stripe";
 import { checkoutEnabled, ecommerceEnabled } from "@/lib/flags";
 import { normalizeRequestedItems, classifyTotal } from "@/lib/pricing";
 import { resolveCoupon } from "@/lib/coupons";
-import { decrementInventoryForItems } from "@/lib/orders";
+import {
+  decrementInventoryForItems,
+  classifyExistingCheckout,
+} from "@/lib/orders";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +24,83 @@ class CheckoutError extends Error {
     super(message);
     this.name = "CheckoutError";
   }
+}
+
+type CheckoutLine = {
+  productId: string | null;
+  name: string;
+  unitPriceCents: number;
+  quantity: number;
+  lineTotalCents: number;
+};
+
+// The transaction's normalized result, whether the order was freshly created or
+// an idempotent retry resolved to an existing one (SSC-28).
+type CheckoutResult = {
+  orderId: string;
+  lineData: CheckoutLine[];
+  discountCents: number;
+  couponSnapshotCode: string | null;
+  isFree: boolean;
+  // The token resolved to an already-settled order (PAID/SHIPPED/FULFILLED) —
+  // a retry after payment. Nothing to charge; redirect to the confirmation.
+  alreadyPaid: boolean;
+};
+
+// Rebuild the checkout result from an order this token already resolved to (an
+// idempotent retry, SSC-28). A settled order needs no Stripe work; a still-
+// PENDING one has its line items rebuilt from the snapshot so the original
+// Stripe session is replayed via the same per-order idempotency key.
+async function resolveExistingOrder(
+  db: Pick<PrismaClient, "orderItem">,
+  existing: {
+    id: string;
+    status: OrderStatus;
+    discountCents: number;
+    couponCode: string | null;
+  },
+): Promise<CheckoutResult> {
+  const decision = classifyExistingCheckout(existing);
+  if (decision.kind === "paid") {
+    return {
+      orderId: existing.id,
+      lineData: [],
+      discountCents: 0,
+      couponSnapshotCode: null,
+      isFree: false,
+      alreadyPaid: true,
+    };
+  }
+  const items = await db.orderItem.findMany({
+    where: { orderId: existing.id },
+  });
+  return {
+    orderId: existing.id,
+    lineData: items.map((i) => ({
+      productId: i.productId,
+      name: i.name,
+      unitPriceCents: i.unitPriceCents,
+      quantity: i.quantity,
+      lineTotalCents: i.lineTotalCents,
+    })),
+    discountCents: existing.discountCents,
+    couponSnapshotCode: existing.couponCode,
+    isFree: false,
+    alreadyPaid: false,
+  };
+}
+
+// True for a Prisma unique-constraint violation on checkoutToken — i.e. a
+// concurrent double-submit lost the race to create this token's order.
+function isCheckoutTokenRace(e: unknown): boolean {
+  return (
+    typeof e === "object" &&
+    e !== null &&
+    (e as { code?: unknown }).code === "P2002" &&
+    String((e as { meta?: { target?: unknown } }).meta?.target ?? "").includes(
+      "checkoutToken",
+    )
+  );
 }
 
 /**
@@ -64,9 +145,57 @@ export async function POST(req: Request) {
       ? body.couponCode.trim().toUpperCase()
       : null;
 
+  // Optional client idempotency token (SSC-28). Bounded length; anything else is
+  // treated as absent, which falls back to the pre-SSC-28 always-create path.
+  const checkoutToken =
+    typeof body?.checkoutToken === "string" &&
+    body.checkoutToken.length > 0 &&
+    body.checkoutToken.length <= 100
+      ? body.checkoutToken
+      : null;
+
   let created;
   try {
     created = await prisma.$transaction(async (tx) => {
+      // Idempotent retry (SSC-28): if this token already has an order, replay it
+      // instead of minting a duplicate. Runs before any re-pricing or creation.
+      if (checkoutToken) {
+        const existing = await tx.order.findUnique({
+          where: { checkoutToken },
+          select: {
+            id: true,
+            status: true,
+            email: true,
+            customerId: true,
+            discountCents: true,
+            couponCode: true,
+          },
+        });
+        if (existing) {
+          // Scope reuse to the token's owner. UUID tokens are unguessable, so a
+          // mismatch is effectively impossible — but never let one caller's
+          // token resolve to another user's order.
+          const owned =
+            existing.email === user.email ||
+            (!!user.customerId && existing.customerId === user.customerId);
+          if (!owned) {
+            throw new CheckoutError(
+              409,
+              "checkout_conflict",
+              "Please try checking out again.",
+            );
+          }
+          if (classifyExistingCheckout(existing).kind === "stale") {
+            throw new CheckoutError(
+              409,
+              "checkout_expired",
+              "Your checkout session expired. Please try again.",
+            );
+          }
+          return resolveExistingOrder(tx, existing);
+        }
+      }
+
       const ids = [...wanted.keys()];
       const products = await tx.product.findMany({
         where: { id: { in: ids }, active: true },
@@ -170,6 +299,8 @@ export async function POST(req: Request) {
           couponCode: couponSnapshotCode,
           couponPercentOff,
           couponAmountOff,
+          // The unique token lets a retry find this exact order (SSC-28).
+          checkoutToken,
           items: { create: lineData },
         },
         select: { id: true },
@@ -187,6 +318,7 @@ export async function POST(req: Request) {
         discountCents,
         couponSnapshotCode,
         isFree,
+        alreadyPaid: false,
       };
     });
   } catch (e) {
@@ -196,7 +328,40 @@ export async function POST(req: Request) {
         { status: e.status },
       );
     }
-    throw e; // unexpected → 500
+    // Concurrent double-submit (SSC-28): two in-flight requests with the same
+    // token both passed the find-then-create gap and one lost on the unique
+    // index. Resolve to the winner's order instead of 500-ing.
+    if (checkoutToken && isCheckoutTokenRace(e)) {
+      const existing = await prisma.order.findUnique({
+        where: { checkoutToken },
+        select: {
+          id: true,
+          status: true,
+          discountCents: true,
+          couponCode: true,
+        },
+      });
+      if (
+        existing &&
+        existing.status !== "CANCELLED" &&
+        existing.status !== "EXPIRED"
+      ) {
+        created = await resolveExistingOrder(prisma, existing);
+      } else {
+        throw e;
+      }
+    } else {
+      throw e; // unexpected → 500
+    }
+  }
+
+  // Idempotent retry that resolved to an already-settled order (PAID/SHIPPED/
+  // FULFILLED): nothing to charge — send them back to the confirmation page.
+  if (created.alreadyPaid) {
+    return NextResponse.json(
+      { url: `/thank-you?order=${created.orderId}`, orderId: created.orderId },
+      { status: 200 },
+    );
   }
 
   // Free order ($0 after a full-value coupon): already PAID with inventory
