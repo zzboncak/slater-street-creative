@@ -33,6 +33,7 @@ Snapshot audit after ~1 year untouched. TypeScript compiles clean (`tsc --noEmit
 - **C3.** `as unknown as X` casts in admin/candles pages instead of Prisma-generated types.
 - **C4.** ~~`eslint-config-next` pinned at 15.4.6 vs `next` (minor drift); deps ~a year old.~~ Resolved (SSC-10). `eslint-config-next` aligned to `next` (15.5.x); `react`/`react-dom` bumped to 19.2.x; `next` (15.5.20) and Prisma (6.19.x) already at latest-within-major. `npm audit` clean of high/critical (2 moderate remain — a postcss advisory pulled in transitively by `next`, unfixable without the Next 16 major).
 - **C5.** README's Stripe section and `.github/copilot-instructions.md` roadmap are partly aspirational — they describe things that don't exist yet.
+- **C6.** Follow-up (SSC-17): `/account` lists a customer's orders via the `User → Customer` link only. Guest/email-only orders (email matches the user but no `customerId`) aren't shown. Not reachable today — checkout requires a login — but if guest checkout is ever added, decide whether to back-link past email-only orders to the account (e.g. claim-by-email on signup/login).
 
 ## What's in good shape
 
