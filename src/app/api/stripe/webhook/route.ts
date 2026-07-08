@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
 import { decrementInventoryForItems } from "@/lib/orders";
+import { sendOrderConfirmation } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -105,7 +106,7 @@ async function cancelPendingOrder(orderId: string) {
  * inventory, so webhook retries (or concurrent deliveries) never double-decrement.
  */
 async function fulfillPaidOrder(orderId: string) {
-  await prisma.$transaction(async (tx) => {
+  const fulfilled = await prisma.$transaction(async (tx) => {
     const claimed = await tx.order.updateMany({
       where: { id: orderId, status: "PENDING" },
       data: { status: "PAID" },
@@ -123,10 +124,38 @@ async function fulfillPaidOrder(orderId: string) {
           `[stripe-webhook] paid webhook for ${existing.status} order ${orderId} — needs manual reconciliation/refund`,
         );
       }
-      return;
+      return null; // already fulfilled by a prior delivery — don't re-send
     }
 
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        email: true,
+        subtotalCents: true,
+        discountCents: true,
+        totalCents: true,
+        couponCode: true,
+      },
+    });
     const items = await tx.orderItem.findMany({ where: { orderId } });
     await decrementInventoryForItems(tx, items, orderId);
+    return { order, items };
   });
+
+  // Only the delivery that won the PENDING→PAID flip reaches here (retries
+  // returned null above), so the receipt is sent at most once. Best-effort and
+  // AWAITed (a serverless function can be frozen after responding, dropping a
+  // fire-and-forget send): a failure is logged but must never fail fulfillment —
+  // the order is already PAID with inventory committed (SSC-18).
+  if (fulfilled?.order) {
+    try {
+      await sendOrderConfirmation(fulfilled.order, fulfilled.items);
+    } catch (err) {
+      console.error(
+        `[stripe-webhook] order ${orderId} confirmation email failed (order still fulfilled):`,
+        err,
+      );
+    }
+  }
 }

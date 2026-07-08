@@ -129,6 +129,22 @@ warning). Events handled:
 For async methods, `completed` fires first with `payment_status: "unpaid"` (the
 webhook does nothing then) and the succeeded/failed event follows later.
 
+### Order confirmation email
+
+On the winning `PENDING`→`PAID` flip the webhook sends the customer an
+order-confirmation email (items, totals, coupon, order id) via
+[Resend](https://resend.com) (`src/lib/email.ts`). It's **env-dormant** like
+Stripe: with `RESEND_API_KEY` / `EMAIL_FROM` unset the email is rendered and
+logged to the server console (never sent) instead of crashing — so local dev
+needs no email account. Sending is **at most once** (piggybacks the idempotent
+PAID claim, so webhook retries don't re-send) and **best-effort** (a send failure
+is logged but never fails the webhook or order fulfillment).
+
+```
+RESEND_API_KEY=re_...                                   # unset in dev → emails are logged, not sent
+EMAIL_FROM="Slater Street Candles <orders@your-domain>" # must be a Resend-verified sender domain
+```
+
 Test locally with the Stripe CLI:
 
 ```
