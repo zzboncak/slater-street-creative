@@ -40,20 +40,57 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
   }
 
-  if (event.type === "checkout.session.completed") {
+  // Card payments arrive as `completed` + `payment_status: "paid"`. Async
+  // methods (bank debits etc.) arrive as `completed` + `unpaid` first, then a
+  // separate async_payment_succeeded / async_payment_failed. All three carry a
+  // Checkout Session as their data object.
+  if (
+    event.type === "checkout.session.completed" ||
+    event.type === "checkout.session.async_payment_succeeded" ||
+    event.type === "checkout.session.async_payment_failed"
+  ) {
     const session = event.data.object as Stripe.Checkout.Session;
     const orderId = session.metadata?.orderId;
-    if (session.payment_status === "paid" && orderId) {
-      await fulfillPaidOrder(orderId);
-    } else if (session.payment_status === "paid" && !orderId) {
-      console.warn(
-        `[stripe-webhook] paid session ${session.id} had no orderId metadata`,
-      );
+
+    if (event.type === "checkout.session.async_payment_failed") {
+      // Definitive failure — cancel the order; never touch inventory.
+      if (orderId) await cancelPendingOrder(orderId);
+    } else {
+      // completed or async_payment_succeeded. Treat as paid only when the
+      // session is actually paid: a `completed` event for an unpaid async
+      // session does nothing here (its async_payment_succeeded follows).
+      const isPaid =
+        event.type === "checkout.session.async_payment_succeeded" ||
+        session.payment_status === "paid";
+      if (isPaid && orderId) {
+        await fulfillPaidOrder(orderId);
+      } else if (isPaid && !orderId) {
+        console.warn(
+          `[stripe-webhook] paid ${event.type} for session ${session.id} had no orderId metadata`,
+        );
+      }
     }
   }
 
   // Ack everything (handled or ignored) so Stripe doesn't retry needlessly.
   return NextResponse.json({ received: true });
+}
+
+/**
+ * Mark a PENDING order CANCELLED (e.g. an async payment definitively failed).
+ * Compare-and-set so it's idempotent and can't override a PAID transition; never
+ * touches inventory — a PENDING order never decremented stock.
+ */
+async function cancelPendingOrder(orderId: string) {
+  const res = await prisma.order.updateMany({
+    where: { id: orderId, status: "PENDING" },
+    data: { status: "CANCELLED" },
+  });
+  if (res.count > 0) {
+    console.info(
+      `[stripe-webhook] order ${orderId} CANCELLED (async payment failed)`,
+    );
+  }
 }
 
 /**

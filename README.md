@@ -114,10 +114,20 @@ any CVC).
 ### Payment confirmation (webhook)
 
 Payment truth comes from Stripe's webhook, **not** the browser redirect.
-`POST /api/stripe/webhook` verifies the signature (`STRIPE_WEBHOOK_SECRET`) and,
-on a paid `checkout.session.completed`, marks the order `PAID` and decrements
-inventory in one idempotent transaction (retries never double-decrement; stock
-floors at 0 with a logged oversell warning).
+`POST /api/stripe/webhook` verifies the signature (`STRIPE_WEBHOOK_SECRET`), then
+marks the order `PAID` and decrements inventory in one idempotent transaction
+(retries never double-decrement; stock floors at 0 with a logged oversell
+warning). Events handled:
+
+- **`checkout.session.completed`** — card / synchronous payments (acts only when
+  `payment_status === "paid"`).
+- **`checkout.session.async_payment_succeeded`** — an async method (e.g. bank
+  debit) cleared → same PAID + inventory fulfillment.
+- **`checkout.session.async_payment_failed`** — the async payment failed → mark
+  the order `CANCELLED`; inventory is never touched.
+
+For async methods, `completed` fires first with `payment_status: "unpaid"` (the
+webhook does nothing then) and the succeeded/failed event follows later.
 
 Test locally with the Stripe CLI:
 
@@ -132,9 +142,12 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 #    The order flips PENDING -> PAID and its items' inventory drops.
 ```
 
-`stripe trigger checkout.session.completed` also fires the event, but it carries
-no real order (no `orderId` metadata), so the handler safely no-ops on it — use
-an actual checkout to see the order/inventory update.
+`stripe trigger checkout.session.completed` (and `…async_payment_succeeded` /
+`…async_payment_failed`) fire the events, but the synthetic sessions carry no
+real order (no `orderId` metadata), so the handler safely no-ops on them — use an
+actual checkout to see the order/inventory update. Exercising a real async
+payment end-to-end needs a delayed-notification method (e.g. an ACH/bank-debit
+test) enabled in the Stripe Dashboard.
 
 ### Abandoned-order sweep (cron)
 
