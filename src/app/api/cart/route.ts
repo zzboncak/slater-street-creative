@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getActiveProductsByIds } from "@/lib/products";
-import {
-  normalizeRequestedItems,
-  computeDiscountCents,
-  couponValidNow,
-} from "@/lib/pricing";
+import { normalizeRequestedItems } from "@/lib/pricing";
+import { resolveCoupon } from "@/lib/coupons";
 import { ecommerceEnabled } from "@/lib/flags";
 import type { CouponStatus, PricedCart } from "@/types";
 
@@ -64,9 +61,9 @@ export async function POST(req: Request) {
   let discountCents = 0;
   let coupon: CouponStatus | undefined;
   if (couponCode) {
-    const row = await prisma.coupon.findUnique({ where: { code: couponCode } });
-    if (row && couponValidNow(row, new Date())) {
-      discountCents = computeDiscountCents(subtotalCents, row);
+    const result = await resolveCoupon(prisma, couponCode, subtotalCents);
+    if (result.ok) {
+      discountCents = result.discountCents;
       coupon = { code: couponCode, applied: true };
     } else {
       coupon = {

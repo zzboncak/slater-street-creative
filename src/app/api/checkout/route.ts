@@ -3,11 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { getStripe } from "@/lib/stripe";
 import { checkoutEnabled, ecommerceEnabled } from "@/lib/flags";
-import {
-  normalizeRequestedItems,
-  computeDiscountCents,
-  couponValidNow,
-} from "@/lib/pricing";
+import { normalizeRequestedItems } from "@/lib/pricing";
+import { resolveCoupon } from "@/lib/coupons";
 
 export const dynamic = "force-dynamic";
 
@@ -134,20 +131,18 @@ export async function POST(req: Request) {
       let couponAmountOff: number | null = null;
       let couponSnapshotCode: string | null = null;
       if (couponCode) {
-        const coupon = await tx.coupon.findUnique({
-          where: { code: couponCode },
-        });
-        if (!coupon || !couponValidNow(coupon, new Date())) {
+        const result = await resolveCoupon(tx, couponCode, subtotalCents);
+        if (!result.ok) {
           throw new CheckoutError(
             400,
             "invalid_coupon",
             "That coupon code is not valid.",
           );
         }
-        discountCents = computeDiscountCents(subtotalCents, coupon);
-        couponPercentOff = coupon.percentOff;
-        couponAmountOff = coupon.amountOff;
-        couponSnapshotCode = coupon.code;
+        discountCents = result.discountCents;
+        couponPercentOff = result.coupon.percentOff;
+        couponAmountOff = result.coupon.amountOff;
+        couponSnapshotCode = result.coupon.code;
       }
 
       const totalCents = Math.max(0, subtotalCents - discountCents);
