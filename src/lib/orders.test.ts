@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { expireStalePendingOrders, markOrderFulfilled } from "./orders";
+import {
+  expireStalePendingOrders,
+  markOrderFulfilled,
+  decrementInventoryForItems,
+} from "./orders";
 
 function makeDb(count: number) {
   const updateMany = vi.fn().mockResolvedValue({ count });
@@ -7,6 +11,18 @@ function makeDb(count: number) {
     typeof expireStalePendingOrders
   >[0];
   return { db, updateMany };
+}
+
+// A DB double for inventory.upsert/update; `quantitiesAfter` are the returned
+// post-decrement quantities, one per upsert call in order.
+function makeInvDb(quantitiesAfter: number[]) {
+  const upsert = vi.fn();
+  quantitiesAfter.forEach((q) => upsert.mockResolvedValueOnce({ quantity: q }));
+  const update = vi.fn().mockResolvedValue({});
+  const db = { inventory: { upsert, update } } as unknown as Parameters<
+    typeof decrementInventoryForItems
+  >[0];
+  return { db, upsert, update };
 }
 
 describe("expireStalePendingOrders", () => {
@@ -62,5 +78,47 @@ describe("markOrderFulfilled", () => {
     const { db, updateMany } = makeDb(1);
     await markOrderFulfilled(db, "ord_1");
     expect(Object.keys(updateMany.mock.calls[0][0].data)).toEqual(["status"]);
+  });
+});
+
+describe("decrementInventoryForItems", () => {
+  it("atomically decrements each line and doesn't floor when stock stays >= 0", async () => {
+    const { db, upsert, update } = makeInvDb([7]);
+    await decrementInventoryForItems(
+      db,
+      [{ productId: "p1", quantity: 3 }],
+      "o",
+    );
+    expect(upsert).toHaveBeenCalledWith({
+      where: { productId: "p1" },
+      update: { quantity: { decrement: 3 } },
+      create: { productId: "p1", quantity: 0 },
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("floors at 0 with a follow-up update when a decrement goes negative", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { db, update } = makeInvDb([-2]); // oversell
+    await decrementInventoryForItems(
+      db,
+      [{ productId: "p1", quantity: 5 }],
+      "o",
+    );
+    expect(update).toHaveBeenCalledWith({
+      where: { productId: "p1" },
+      data: { quantity: 0 },
+    });
+    warn.mockRestore();
+  });
+
+  it("skips items whose product was deleted (null productId)", async () => {
+    const { db, upsert } = makeInvDb([]);
+    await decrementInventoryForItems(
+      db,
+      [{ productId: null, quantity: 2 }],
+      "o",
+    );
+    expect(upsert).not.toHaveBeenCalled();
   });
 });

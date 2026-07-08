@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
+import { decrementInventoryForItems } from "@/lib/orders";
 
 export const dynamic = "force-dynamic";
 
@@ -126,27 +127,6 @@ async function fulfillPaidOrder(orderId: string) {
     }
 
     const items = await tx.orderItem.findMany({ where: { orderId } });
-    for (const item of items) {
-      if (!item.productId) continue; // product deleted; order snapshot stands
-      // Atomic decrement (SET quantity = quantity - n) — the DB row lock makes
-      // concurrent orders for the same product serialize, so there's no
-      // read-compute-write lost update. It can go negative on a genuine
-      // oversell, which we then floor to 0 (still inside the row lock).
-      const updated = await tx.inventory.upsert({
-        where: { productId: item.productId },
-        update: { quantity: { decrement: item.quantity } },
-        create: { productId: item.productId, quantity: 0 },
-      });
-      if (updated.quantity < 0) {
-        console.warn(
-          `[stripe-webhook] oversell on product ${item.productId} (order ${orderId}): ` +
-            `short by ${-updated.quantity} — flooring at 0`,
-        );
-        await tx.inventory.update({
-          where: { productId: item.productId },
-          data: { quantity: 0 },
-        });
-      }
-    }
+    await decrementInventoryForItems(tx, items, orderId);
   });
 }

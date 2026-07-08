@@ -2,6 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 
 // Accepts the global prisma client or a transaction client — both expose `.order`.
 type OrderDb = Pick<PrismaClient, "order">;
+type InventoryDb = Pick<PrismaClient, "inventory">;
 
 /**
  * Sweep abandoned checkouts: mark every PENDING order older than
@@ -38,4 +39,36 @@ export async function markOrderFulfilled(
     data: { status: "FULFILLED" },
   });
   return result.count > 0;
+}
+
+/**
+ * Decrement inventory for a set of order lines — atomic per line (so concurrent
+ * orders for the same product can't lost-update), floored at 0 with a logged
+ * oversell warning. Products deleted since the order (null productId) are skipped.
+ * Shared by the paid webhook (SSC-14) and the free-order checkout path (SSC-23);
+ * call it inside a transaction so it commits with the order's status change.
+ */
+export async function decrementInventoryForItems(
+  db: InventoryDb,
+  items: { productId: string | null; quantity: number }[],
+  orderId: string,
+): Promise<void> {
+  for (const item of items) {
+    if (!item.productId) continue; // product deleted; order snapshot stands
+    const updated = await db.inventory.upsert({
+      where: { productId: item.productId },
+      update: { quantity: { decrement: item.quantity } },
+      create: { productId: item.productId, quantity: 0 },
+    });
+    if (updated.quantity < 0) {
+      console.warn(
+        `[inventory] oversell on product ${item.productId} (order ${orderId}): ` +
+          `short by ${-updated.quantity} — flooring at 0`,
+      );
+      await db.inventory.update({
+        where: { productId: item.productId },
+        data: { quantity: 0 },
+      });
+    }
+  }
 }

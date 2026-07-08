@@ -69,3 +69,21 @@ export function couponValidNow(coupon: CouponWindow, now: Date): boolean {
   if (coupon.validTo && now > coupon.validTo) return false;
   return true;
 }
+
+// Stripe's minimum charge for USD. A total below this can't create a payable
+// Checkout Session.
+export const MIN_CHARGE_CENTS = 50;
+
+export type ChargeOutcome = "free" | "below_minimum" | "chargeable";
+
+/**
+ * How to handle an order total at checkout:
+ *  - "free"          → $0 (a full-value coupon): create a PAID order, skip Stripe.
+ *  - "below_minimum" → 1–49¢: Stripe can't charge it; block with a clear message.
+ *  - "chargeable"    → ≥ 50¢: normal Stripe Checkout.
+ */
+export function classifyTotal(totalCents: number): ChargeOutcome {
+  if (totalCents <= 0) return "free";
+  if (totalCents < MIN_CHARGE_CENTS) return "below_minimum";
+  return "chargeable";
+}
