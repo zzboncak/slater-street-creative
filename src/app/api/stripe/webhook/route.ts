@@ -70,15 +70,15 @@ async function fulfillPaidOrder(orderId: string) {
     });
     if (claimed.count === 0) {
       // Not PENDING: usually an idempotent replay of an already-PAID order. But
-      // a paid webhook for a CANCELLED order means money came in with nothing to
-      // fulfill — surface it for manual refund/reconciliation.
+      // a paid webhook for a CANCELLED/EXPIRED order means money came in with
+      // nothing to fulfill — surface it for manual refund/reconciliation.
       const existing = await tx.order.findUnique({
         where: { id: orderId },
         select: { status: true },
       });
-      if (existing?.status === "CANCELLED") {
+      if (existing?.status === "CANCELLED" || existing?.status === "EXPIRED") {
         console.warn(
-          `[stripe-webhook] paid webhook for CANCELLED order ${orderId} — needs manual reconciliation/refund`,
+          `[stripe-webhook] paid webhook for ${existing.status} order ${orderId} — needs manual reconciliation/refund`,
         );
       }
       return;

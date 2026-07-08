@@ -136,6 +136,23 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 no real order (no `orderId` metadata), so the handler safely no-ops on it — use
 an actual checkout to see the order/inventory update.
 
+### Abandoned-order sweep (cron)
+
+Checkout mints a `PENDING` order before redirecting to Stripe, so abandoned
+payments, double-clicks, and Stripe errors leave orphan `PENDING` orders (no
+inventory impact — stock is only decremented on the paid webhook). A scheduled
+sweep marks any `PENDING` order older than 24h as `EXPIRED`.
+
+`GET /api/cron/expire-orders` runs the sweep; it requires
+`Authorization: Bearer <CRON_SECRET>`. **Vercel Cron** (`vercel.json`) calls it
+daily and sends that header automatically once `CRON_SECRET` is set on the
+project. (Hourly is possible on Vercel Pro; the committed schedule is daily so it
+works on any plan.) Trigger it manually with:
+
+```
+curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/expire-orders
+```
+
 ## Future backend
 
 - Admin pages for orders.
