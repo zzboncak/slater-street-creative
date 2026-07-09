@@ -213,3 +213,15 @@ export async function requireAdmin(): Promise<User> {
   if (!result.ok) redirect("/login?next=/admin");
   return result.user;
 }
+
+/**
+ * Session gate for customer-facing pages: returns the authenticated user (any
+ * role), or redirects to the login page — preserving where they were headed via
+ * `next` — on any failure (never returns on the failure path). For route
+ * handlers that need a JSON status, call `getSessionUser()` directly instead.
+ */
+export async function requireUser(nextPath: string): Promise<User> {
+  const user = await getSessionUser();
+  if (!user) redirect(`/login?next=${encodeURIComponent(nextPath)}`);
+  return user;
+}
