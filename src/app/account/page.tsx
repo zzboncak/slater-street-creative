@@ -34,7 +34,22 @@ export default async function AccountPage() {
           customerId: user.customerId,
           status: { in: VISIBLE_STATUSES },
         },
-        include: { items: true },
+        // Select only what the page renders — not the full Order row (email,
+        // shipping snapshot, stripeCheckoutSessionId, checkoutToken, …) (SSC-31).
+        select: {
+          id: true,
+          createdAt: true,
+          status: true,
+          totalCents: true,
+          items: {
+            select: {
+              id: true,
+              name: true,
+              quantity: true,
+              lineTotalCents: true,
+            },
+          },
+        },
         orderBy: { createdAt: "desc" },
       })
     : [];
