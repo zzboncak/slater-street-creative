@@ -21,6 +21,8 @@ npx tsc --noEmit   # typecheck
 npm run format     # Prettier
 npm test           # Vitest unit tests (run once)
 npm run build      # prisma generate + next build
+npm run ticket SSC-17          # fetch a board ticket by number (needs NOTION_API_KEY)
+npm run ticket -- SSC-17 --json # same, raw JSON for tooling
 ```
 
 Before finishing any task, run: `npx tsc --noEmit && npm run lint && npm run format && npm test`. CI (`.github/workflows/ci.yml`) runs typecheck + lint + test on pushes to `main` and every PR.

@@ -8,6 +8,7 @@
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
     "db:seed": "tsx prisma/seed.ts",
+    "ticket": "tsx scripts/notion-ticket.ts",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
