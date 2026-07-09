@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import type { Coupon } from "@prisma/client";
-import { resolveCoupon } from "./coupons";
+import {
+  resolveCoupon,
+  claimCouponRedemption,
+  releaseCouponRedemption,
+} from "./coupons";
 
 function makeCoupon(overrides: Partial<Coupon> = {}): Coupon {
   return {
@@ -13,6 +17,10 @@ function makeCoupon(overrides: Partial<Coupon> = {}): Coupon {
     validFrom: null,
     validTo: null,
     createdAt: new Date("2026-01-01"),
+    maxRedemptions: null,
+    perUserLimit: null,
+    usedCount: 0,
+    allowFreeOrders: false,
     ...overrides,
   };
 }
@@ -79,5 +87,68 @@ describe("resolveCoupon", () => {
     const { db } = makeDb(coupon);
     const result = await resolveCoupon(db, "FIVE", 1000);
     expect(result).toEqual({ ok: true, discountCents: 500, coupon });
+  });
+
+  it("returns exhausted when the global redemption cap is reached (SSC-30)", async () => {
+    const { db } = makeDb(makeCoupon({ maxRedemptions: 5, usedCount: 5 }));
+    expect(await resolveCoupon(db, "SAVE10", 1000)).toEqual({
+      ok: false,
+      reason: "exhausted",
+    });
+  });
+
+  it("still resolves when usedCount is below the cap", async () => {
+    const coupon = makeCoupon({ maxRedemptions: 5, usedCount: 4 });
+    const { db } = makeDb(coupon);
+    expect(await resolveCoupon(db, "SAVE10", 1000)).toEqual({
+      ok: true,
+      discountCents: 100,
+      coupon,
+    });
+  });
+});
+
+// A DB double exposing coupon.updateMany; `count` is the rows it reports matched.
+function makeCountDb(count: number) {
+  const updateMany = vi.fn().mockResolvedValue({ count });
+  const db = { coupon: { updateMany } } as unknown as Parameters<
+    typeof claimCouponRedemption
+  >[0];
+  return { db, updateMany };
+}
+
+describe("claimCouponRedemption", () => {
+  it("reserves under a cap via compare-and-set and returns true", async () => {
+    const { db, updateMany } = makeCountDb(1);
+    expect(await claimCouponRedemption(db, "c1", 100)).toBe(true);
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: "c1", usedCount: { lt: 100 } },
+      data: { usedCount: { increment: 1 } },
+    });
+  });
+
+  it("returns false when the cap is already reached (0 rows matched)", async () => {
+    const { db } = makeCountDb(0);
+    expect(await claimCouponRedemption(db, "c1", 5)).toBe(false);
+  });
+
+  it("omits the cap guard for an uncapped coupon but still increments", async () => {
+    const { db, updateMany } = makeCountDb(1);
+    expect(await claimCouponRedemption(db, "c1", null)).toBe(true);
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: "c1" },
+      data: { usedCount: { increment: 1 } },
+    });
+  });
+});
+
+describe("releaseCouponRedemption", () => {
+  it("decrements with a floor guard so usedCount can't go negative", async () => {
+    const { db, updateMany } = makeCountDb(1);
+    await releaseCouponRedemption(db, "SAVE5");
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { code: "SAVE5", usedCount: { gt: 0 } },
+      data: { usedCount: { decrement: 1 } },
+    });
   });
 });

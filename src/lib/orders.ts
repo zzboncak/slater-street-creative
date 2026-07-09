@@ -1,4 +1,5 @@
 import type { OrderStatus, PrismaClient } from "@prisma/client";
+import { releaseCouponRedemption } from "@/lib/coupons";
 
 // Accepts the global prisma client or a transaction client — both expose `.order`.
 type OrderDb = Pick<PrismaClient, "order">;
@@ -41,20 +42,36 @@ export function classifyExistingCheckout(
  * `olderThanHours` as EXPIRED. A checkout mints a PENDING order before handing
  * off to Stripe, so abandoned payments / double-clicks / Stripe errors leave
  * orphans that only this sweep (not the paid webhook) resolves. Inventory is
- * untouched — PENDING orders never decremented stock. Idempotent: a second run
- * matches nothing new. Returns how many orders were expired.
+ * untouched — PENDING orders never decremented stock. Any coupon slot the order
+ * reserved at checkout is released (SSC-30). Idempotent: a second run matches
+ * nothing new. Returns how many orders were expired.
  */
 export async function expireStalePendingOrders(
-  db: OrderDb,
+  db: Pick<PrismaClient, "order" | "coupon">,
   olderThanHours: number,
   now: Date = new Date(),
 ): Promise<number> {
   const cutoff = new Date(now.getTime() - olderThanHours * 60 * 60 * 1000);
-  const result = await db.order.updateMany({
+  // Read the stale orders first so we know which coupon slots to release.
+  const stale = await db.order.findMany({
     where: { status: "PENDING", createdAt: { lt: cutoff } },
-    data: { status: "EXPIRED" },
+    select: { id: true, couponCode: true },
   });
-  return result.count;
+  let expired = 0;
+  for (const o of stale) {
+    // Per-order compare-and-set: only flip orders still PENDING, so one paid
+    // between the read and here is left alone and keeps its reservation — and
+    // only an actual flip releases the coupon slot it reserved at checkout.
+    const res = await db.order.updateMany({
+      where: { id: o.id, status: "PENDING" },
+      data: { status: "EXPIRED" },
+    });
+    if (res.count > 0) {
+      expired++;
+      if (o.couponCode) await releaseCouponRedemption(db, o.couponCode);
+    }
+  }
+  return expired;
 }
 
 /**

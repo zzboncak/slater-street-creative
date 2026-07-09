@@ -9,9 +9,29 @@ import {
 function makeDb(count: number) {
   const updateMany = vi.fn().mockResolvedValue({ count });
   const db = { order: { updateMany } } as unknown as Parameters<
-    typeof expireStalePendingOrders
+    typeof markOrderFulfilled
   >[0];
   return { db, updateMany };
+}
+
+// A DB double for the expire sweep: order.findMany returns `stale`; each per-order
+// order.updateMany returns count 1 (or 0 when `flip[i] === false`, i.e. the order
+// was flipped by a concurrent pay first); coupon.updateMany records releases.
+function makeSweepDb(
+  stale: { id: string; couponCode: string | null }[],
+  flip: boolean[] = [],
+) {
+  const findMany = vi.fn().mockResolvedValue(stale);
+  const orderUpdateMany = vi.fn();
+  stale.forEach((_, i) =>
+    orderUpdateMany.mockResolvedValueOnce({ count: flip[i] === false ? 0 : 1 }),
+  );
+  const couponUpdateMany = vi.fn().mockResolvedValue({ count: 1 });
+  const db = {
+    order: { findMany, updateMany: orderUpdateMany },
+    coupon: { updateMany: couponUpdateMany },
+  } as unknown as Parameters<typeof expireStalePendingOrders>[0];
+  return { db, findMany, orderUpdateMany, couponUpdateMany };
 }
 
 // A DB double for inventory.upsert/update; `quantitiesAfter` are the returned
@@ -29,33 +49,61 @@ function makeInvDb(quantitiesAfter: number[]) {
 describe("expireStalePendingOrders", () => {
   const now = new Date("2026-07-08T12:00:00Z");
 
-  it("expires PENDING orders older than the cutoff and returns the count", async () => {
-    const { db, updateMany } = makeDb(3);
+  it("expires stale PENDING orders via per-order CAS and returns the count", async () => {
+    const { db, findMany, orderUpdateMany } = makeSweepDb([
+      { id: "o1", couponCode: null },
+      { id: "o2", couponCode: null },
+      { id: "o3", couponCode: null },
+    ]);
     const expired = await expireStalePendingOrders(db, 24, now);
     expect(expired).toBe(3);
-    expect(updateMany).toHaveBeenCalledWith({
+    expect(findMany).toHaveBeenCalledWith({
       where: {
         status: "PENDING",
         createdAt: { lt: new Date("2026-07-07T12:00:00Z") }, // now − 24h
       },
+      select: { id: true, couponCode: true },
+    });
+    expect(orderUpdateMany).toHaveBeenCalledWith({
+      where: { id: "o1", status: "PENDING" },
       data: { status: "EXPIRED" },
     });
+    expect(orderUpdateMany).toHaveBeenCalledTimes(3);
   });
 
   it("computes the cutoff from the given window", async () => {
-    const { updateMany } = makeDb(0);
-    const db = { order: { updateMany } } as unknown as Parameters<
-      typeof expireStalePendingOrders
-    >[0];
+    const { db, findMany } = makeSweepDb([]);
     await expireStalePendingOrders(db, 1, now);
-    expect(updateMany.mock.calls[0][0].where.createdAt.lt).toEqual(
+    expect(findMany.mock.calls[0][0].where.createdAt.lt).toEqual(
       new Date("2026-07-08T11:00:00Z"), // now − 1h
     );
   });
 
   it("returns 0 when nothing is stale", async () => {
-    const { db } = makeDb(0);
+    const { db } = makeSweepDb([]);
     expect(await expireStalePendingOrders(db, 24, now)).toBe(0);
+  });
+
+  it("releases the coupon slot for each expired order that reserved one", async () => {
+    const { db, couponUpdateMany } = makeSweepDb([
+      { id: "o1", couponCode: "SAVE5" },
+      { id: "o2", couponCode: null }, // no coupon → no release
+    ]);
+    await expireStalePendingOrders(db, 24, now);
+    expect(couponUpdateMany).toHaveBeenCalledTimes(1);
+    expect(couponUpdateMany).toHaveBeenCalledWith({
+      where: { code: "SAVE5", usedCount: { gt: 0 } },
+      data: { usedCount: { decrement: 1 } },
+    });
+  });
+
+  it("doesn't release when the order was already flipped (concurrent pay, CAS count 0)", async () => {
+    const { db, couponUpdateMany } = makeSweepDb(
+      [{ id: "o1", couponCode: "SAVE5" }],
+      [false],
+    );
+    expect(await expireStalePendingOrders(db, 24, now)).toBe(0);
+    expect(couponUpdateMany).not.toHaveBeenCalled();
   });
 });
 
