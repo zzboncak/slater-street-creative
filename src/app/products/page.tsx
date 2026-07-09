@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
-import ProductCard from "@/components/ProductCard";
+import ProductCatalog from "@/components/ProductCatalog";
 import { getActiveProducts } from "@/lib/products";
+import { distinctScents } from "@/lib/catalog-filter";
 import { ecommerceEnabled } from "@/lib/flags";
 
 export const metadata = { title: "Products" };
@@ -14,11 +15,9 @@ export default async function ProductsPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
       <h1 className="text-3xl font-semibold mb-6">Products</h1>
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {list.map((p) => (
-          <ProductCard key={p.id} product={p} />
-        ))}
-      </div>
+      {/* Catalog data comes from the DB (server); search/filter is client-side
+          over that loaded list for instant, as-you-type UX (SSC-19). */}
+      <ProductCatalog products={list} scents={distinctScents(list)} />
     </div>
   );
 }
