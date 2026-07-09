@@ -12,6 +12,10 @@ type Coupon = {
   validFrom: Date | null;
   validTo: Date | null;
   createdAt: Date;
+  maxRedemptions: number | null;
+  perUserLimit: number | null;
+  usedCount: number;
+  allowFreeOrders: boolean;
 };
 
 export default async function AdminCouponsPage() {
@@ -45,6 +49,24 @@ export default async function AdminCouponsPage() {
             className="border rounded px-2 py-1"
           />
           <input
+            name="maxRedemptions"
+            placeholder="Max redemptions (blank = ∞)"
+            type="number"
+            min={0}
+            className="border rounded px-2 py-1"
+          />
+          <input
+            name="perUserLimit"
+            placeholder="Per-user limit (blank = ∞)"
+            type="number"
+            min={0}
+            className="border rounded px-2 py-1"
+          />
+          <label className="flex items-center gap-2 text-sm sm:col-span-2">
+            <input type="checkbox" name="allowFreeOrders" />
+            Allow $0 orders (a full-value coupon can complete without payment)
+          </label>
+          <input
             name="validFrom"
             placeholder="Valid from (YYYY-MM-DD)"
             className="border rounded px-2 py-1"
@@ -71,6 +93,9 @@ export default async function AdminCouponsPage() {
             <th className="py-2">Code</th>
             <th>Percent</th>
             <th>Amount</th>
+            <th>Redemptions</th>
+            <th>Per-user</th>
+            <th>$0</th>
             <th>Active</th>
             <th>Range</th>
             <th></th>
@@ -82,6 +107,9 @@ export default async function AdminCouponsPage() {
               <td className="py-2">{c.code}</td>
               <td>{c.percentOff ?? "-"}</td>
               <td>{c.amountOff ?? "-"}</td>
+              <td>{`${c.usedCount} / ${c.maxRedemptions ?? "∞"}`}</td>
+              <td>{c.perUserLimit ?? "∞"}</td>
+              <td>{c.allowFreeOrders ? "Yes" : "-"}</td>
               <td>{c.active ? "Yes" : "No"}</td>
               <td>
                 {[
@@ -125,6 +153,8 @@ async function createCoupon(formData: FormData) {
     .toUpperCase();
   const percentRaw = Number(formData.get("percentOff"));
   const amountRaw = Number(formData.get("amountOff"));
+  const maxRedRaw = Number(formData.get("maxRedemptions"));
+  const perUserRaw = Number(formData.get("perUserLimit"));
   const description = String(formData.get("description") || "").trim() || null;
   const validFromStr = String(formData.get("validFrom") || "");
   const validToStr = String(formData.get("validTo") || "");
@@ -142,6 +172,17 @@ async function createCoupon(formData: FormData) {
       formData.get("amountOff") && Number.isFinite(amountRaw)
         ? Math.max(0, Math.round(amountRaw))
         : null,
+    // Redemption limits — blank = null (unlimited); floored at 0 (SSC-30).
+    maxRedemptions:
+      formData.get("maxRedemptions") && Number.isFinite(maxRedRaw)
+        ? Math.max(0, Math.round(maxRedRaw))
+        : null,
+    perUserLimit:
+      formData.get("perUserLimit") && Number.isFinite(perUserRaw)
+        ? Math.max(0, Math.round(perUserRaw))
+        : null,
+    usedCount: 0,
+    allowFreeOrders: !!formData.get("allowFreeOrders"),
     validFrom: validFromStr ? new Date(validFromStr) : null,
     validTo: validToStr ? new Date(validToStr) : null,
   };

@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
 import { decrementInventoryForItems } from "@/lib/orders";
+import { releaseCouponRedemption } from "@/lib/coupons";
 import { sendOrderConfirmation } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
@@ -88,15 +89,26 @@ export async function POST(req: Request) {
  * touches inventory — a PENDING order never decremented stock.
  */
 async function cancelPendingOrder(orderId: string) {
-  const res = await prisma.order.updateMany({
-    where: { id: orderId, status: "PENDING" },
-    data: { status: "CANCELLED" },
+  await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      select: { couponCode: true },
+    });
+    const res = await tx.order.updateMany({
+      where: { id: orderId, status: "PENDING" },
+      data: { status: "CANCELLED" },
+    });
+    if (res.count > 0) {
+      // Only the delivery that won the PENDING→CANCELLED flip releases the
+      // coupon slot the order reserved at checkout (SSC-30) — so a retried
+      // webhook can't double-release.
+      if (order?.couponCode)
+        await releaseCouponRedemption(tx, order.couponCode);
+      console.info(
+        `[stripe-webhook] order ${orderId} CANCELLED (async payment failed)`,
+      );
+    }
   });
-  if (res.count > 0) {
-    console.info(
-      `[stripe-webhook] order ${orderId} CANCELLED (async payment failed)`,
-    );
-  }
 }
 
 /**

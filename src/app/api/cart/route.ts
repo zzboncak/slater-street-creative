@@ -69,7 +69,10 @@ export async function POST(req: Request) {
       coupon = {
         code: couponCode,
         applied: false,
-        message: "That coupon code isn’t valid.",
+        message:
+          result.reason === "exhausted"
+            ? "That coupon has reached its redemption limit."
+            : "That coupon code isn’t valid.",
       };
     }
   }

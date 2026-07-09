@@ -71,6 +71,12 @@ model Coupon {
   validFrom   DateTime?
   validTo     DateTime?
   createdAt   DateTime @default(now())
+
+  // Redemption limits (SSC-30). All null/false = unchanged legacy behavior.
+  maxRedemptions  Int? // global cap on total redemptions; null = unlimited
+  perUserLimit    Int? // per-customer cap for THIS coupon; null = unlimited
+  usedCount       Int     @default(0) // reserve-and-release redemption counter
+  allowFreeOrders Boolean @default(false) // may this coupon drive a total to $0?
 }
 
 model User {

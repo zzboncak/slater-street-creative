@@ -5,7 +5,7 @@ import { getSessionUser } from "@/lib/auth";
 import { getStripe } from "@/lib/stripe";
 import { checkoutEnabled, ecommerceEnabled } from "@/lib/flags";
 import { normalizeRequestedItems, classifyTotal } from "@/lib/pricing";
-import { resolveCoupon } from "@/lib/coupons";
+import { resolveCoupon, claimCouponRedemption } from "@/lib/coupons";
 import {
   decrementInventoryForItems,
   classifyExistingCheckout,
@@ -240,14 +240,27 @@ export async function POST(req: Request) {
 
       const subtotalCents = lineData.reduce((s, l) => s + l.lineTotalCents, 0);
 
-      // Optional coupon: must exist, be active, and be within its date window.
+      // Optional coupon: must exist, be active, within its date window, and not
+      // exhausted. Capture its redemption limits so we can enforce them below.
       let discountCents = 0;
       let couponPercentOff: number | null = null;
       let couponAmountOff: number | null = null;
       let couponSnapshotCode: string | null = null;
+      let couponId: string | null = null;
+      let couponMaxRedemptions: number | null = null;
+      let couponPerUserLimit: number | null = null;
+      let couponAllowFreeOrders = false;
       if (couponCode) {
         const result = await resolveCoupon(tx, couponCode, subtotalCents);
         if (!result.ok) {
+          // `exhausted` = the global cap is spent; everything else = invalid.
+          if (result.reason === "exhausted") {
+            throw new CheckoutError(
+              409,
+              "coupon_exhausted",
+              "That coupon has reached its redemption limit.",
+            );
+          }
           throw new CheckoutError(
             400,
             "invalid_coupon",
@@ -258,6 +271,10 @@ export async function POST(req: Request) {
         couponPercentOff = result.coupon.percentOff;
         couponAmountOff = result.coupon.amountOff;
         couponSnapshotCode = result.coupon.code;
+        couponId = result.coupon.id;
+        couponMaxRedemptions = result.coupon.maxRedemptions;
+        couponPerUserLimit = result.coupon.perUserLimit;
+        couponAllowFreeOrders = result.coupon.allowFreeOrders;
       }
 
       const totalCents = Math.max(0, subtotalCents - discountCents);
@@ -274,6 +291,58 @@ export async function POST(req: Request) {
       }
 
       const isFree = outcome === "free";
+
+      // A $0 total may only complete when the coupon that produced it is
+      // explicitly flagged for it, so full-value comps are always deliberate
+      // (SSC-30). No coupon + $0 is never treated as free here.
+      if (isFree && !couponAllowFreeOrders) {
+        throw new CheckoutError(
+          400,
+          "free_not_allowed",
+          "This order can't be completed at $0.",
+        );
+      }
+
+      // Per-user coupon cap: count THIS user's orders already redeeming this code
+      // (excluding released ones — CANCELLED/EXPIRED). Keyed on email (always
+      // present, unique per user) — never customerId, which can be null and would
+      // match other null-customer orders. Best-effort read: the SSC-28 token
+      // collapses same-cart double-submits, and the global cap below is the hard
+      // atomic guard.
+      if (couponSnapshotCode && couponPerUserLimit != null) {
+        const priorRedemptions = await tx.order.count({
+          where: {
+            couponCode: couponSnapshotCode,
+            email: user.email,
+            status: { notIn: ["CANCELLED", "EXPIRED"] },
+          },
+        });
+        if (priorRedemptions >= couponPerUserLimit) {
+          throw new CheckoutError(
+            409,
+            "coupon_user_limit",
+            "You've already used this coupon.",
+          );
+        }
+      }
+
+      // Atomically reserve a redemption slot against the global cap. Inside the
+      // transaction, so a later failure — or the order.create below rolling
+      // back — releases the reservation automatically (SSC-30).
+      if (couponId) {
+        const reserved = await claimCouponRedemption(
+          tx,
+          couponId,
+          couponMaxRedemptions,
+        );
+        if (!reserved) {
+          throw new CheckoutError(
+            409,
+            "coupon_exhausted",
+            "That coupon has reached its redemption limit.",
+          );
+        }
+      }
 
       // A chargeable order needs Stripe configured; reject before creating the
       // order so a misconfiguration can't leave an orphan PENDING order. A free
