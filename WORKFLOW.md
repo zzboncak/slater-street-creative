@@ -70,11 +70,11 @@ When the preconditions are met, gating shifts from "every step" to "by risk," so
 
 **Preconditions to activate:** CI running the full Verify suite on PRs (SSC-9), a real test base covering auth + pricing math, Phase 1 (Security Hardening) done, and the architect comfortable with the dev's patterns.
 
-| Tier | What's in it (by Domain + judgment) | Gating |
-| --- | --- | --- |
-| 🟢 **Green** | Storefront/Catalog front-end, UI polish, pure refactors, docs. | Plan goes in the PR, not pre-approved. Merge on green CI; architect spot-checks async. |
-| 🟡 **Yellow** | Most back-end feature work that isn't security-sensitive. | Plan in the PR; architect reviews before merge. |
-| 🔴 **Red** | **Auth**, **Payments**, anything touching money / PII / sessions, any schema design, new dependencies. | Interactive plan approval first; architect review and merge. |
+| Tier          | What's in it (by Domain + judgment)                                                                    | Gating                                                                                 |
+| ------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| 🟢 **Green**  | Storefront/Catalog front-end, UI polish, pure refactors, docs.                                         | Plan goes in the PR, not pre-approved. Merge on green CI; architect spot-checks async. |
+| 🟡 **Yellow** | Most back-end feature work that isn't security-sensitive.                                              | Plan in the PR; architect reviews before merge.                                        |
+| 🔴 **Red**    | **Auth**, **Payments**, anything touching money / PII / sessions, any schema design, new dependencies. | Interactive plan approval first; architect review and merge.                           |
 
 When in doubt, go up a tier. A Green ticket that turns out to need a schema or auth change becomes Red the moment that's discovered. Even after activation, **Stop-and-ask still applies to every tier.**
 
@@ -86,7 +86,32 @@ Everything lives under the **Slater Street Creative** page. Use these IDs direct
 - **Project Board** database: `cf97acd3-6561-4057-9eef-db08c3fb6685` — data source: `collection://e41275e1-3849-46c0-a280-c4197ec79751`
 - **Epics** database: `3d7e855e-64ba-4ca1-bbc2-bfab5ad66376` — data source: `collection://0e1d8673-ba48-4f59-bfa8-a7e57aba91e5`
 
-**Gotcha — don't resolve a ticket by semantic search.** `SSC-#` is the auto-increment **`Ticket`** property; it isn't in page titles, URLs, or body text, so searching "SSC-5" won't find it. Instead: fetch the Project Board data source to list ticket pages, then fetch candidates and match on the `Ticket` property.
+### Resolve a ticket by its number
+
+**Don't semantic-search for it.** `SSC-#` is the auto-increment **`Ticket`** property; it isn't in page titles, URLs, or body text, so searching "SSC-17" won't find it. The `SSC-` prefix is display-only — the queryable value is the bare integer, so **`SSC-17` → `Ticket = 17`**. Resolve it exactly, no candidate-hunting:
+
+**From a shell / CI / headless agent (preferred — no MCP, no rate limits):**
+
+```
+npm run ticket SSC-17               # human-readable report (properties + Context/AC/Notes)
+npm run ticket -- SSC-17 --json     # machine-readable (the --json flag needs the `--`)
+```
+
+`scripts/notion-ticket.ts` hits the Notion **REST** `databases/{id}/query` with an exact `unique_id` filter, then reads the page blocks. It needs `NOTION_API_KEY` (an internal-integration token shared with the board — see `.env.example`); unset, it prints a setup hint. This route avoids the MCP collection-query router, which rate-limits intermittently (`collection_router_upstream_429`, retry ~30s).
+
+**From an interactive Claude Code session (MCP), two steps:**
+
+1. **Resolve** SSC-17 → its page. Query the data source on the integer (SQL mode):
+
+   ```sql
+   SELECT "Ticket", "Name", "Status", "Domain", "Layer", "Priority", "Sequence", url
+   FROM "collection://e41275e1-3849-46c0-a280-c4197ec79751"
+   WHERE "Ticket" = 17
+   ```
+
+2. **Read the body** — `notion-fetch` the `url` from step 1 for Context / Acceptance criteria / Notes. `fetch` renders the id as `"Ticket":"SSC-17"` (prefixed) and goes through a healthier page route than the query router.
+
+**Fallback — only if the query router 429s.** Batch several ids into one `WHERE "Ticket" IN (…)`; or, if SQL mode is unavailable, `notion-fetch` the data source to list candidate pages and fetch candidates **in parallel**, matching on the `Ticket` property. (The `npm run ticket` helper sidesteps all of this.)
 
 ### Board properties
 
