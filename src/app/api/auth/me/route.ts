@@ -1,30 +1,16 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { prisma } from "@/lib/prisma";
-import { verifyJwt } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
 
 export async function GET() {
-  const jar = await cookies();
-  const token = jar.get("session")?.value || "";
-  const payload = token ? verifyJwt(token) : null;
-  if (!payload)
+  // getSessionUser does the full check (JWT signature/expiry → DB-backed session
+  // validity → the User row). `role` therefore comes from the DB, never the JWT
+  // payload — so a promotion or demotion takes effect on the next request, and a
+  // stale token can't keep asserting an old role.
+  const user = await getSessionUser();
+  if (!user)
     return NextResponse.json({ authenticated: false }, { status: 200 });
-  if (payload.jti) {
-    const session = await prisma.session.findUnique({
-      where: { id: payload.jti },
-    });
-    const now = new Date();
-    if (
-      !session ||
-      session.userId !== payload.sub ||
-      session.revokedAt ||
-      session.expiresAt <= now
-    ) {
-      return NextResponse.json({ authenticated: false }, { status: 200 });
-    }
-  }
   return NextResponse.json({
     authenticated: true,
-    user: { id: payload.sub, email: payload.email },
+    user: { id: user.id, email: user.email, role: user.role },
   });
 }

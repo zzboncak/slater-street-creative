@@ -1,6 +1,6 @@
 import CFImageField from "@/components/admin/ImageField";
 import { ProductType } from "@prisma/client";
-import { requireAdmin } from "@/lib/auth";
+import { requireCapability } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +15,9 @@ type ProductRow = {
 };
 
 export default async function AdminProductsPage() {
+  // The layout admits FULFILLMENT into the admin area; product management is
+  // ADMIN-only, so gate the page itself (not just the actions).
+  await requireCapability("manageProducts");
   const [products, scentOptions] = await Promise.all([
     prisma.product.findMany({
       orderBy: { createdAt: "desc" },
@@ -141,7 +144,7 @@ export default async function AdminProductsPage() {
 
 async function createProduct(formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireCapability("manageProducts");
   const name = String(formData.get("name") || "").trim();
   const priceCents = Number(formData.get("priceCents"));
   const type = String(formData.get("type") || "CANDLE").trim();
@@ -170,7 +173,7 @@ async function createProduct(formData: FormData) {
 
 async function toggleActive(formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireCapability("manageProducts");
   const id = String(formData.get("id"));
   const p = await prisma.product.findUnique({ where: { id } });
   if (!p) return;
@@ -179,7 +182,7 @@ async function toggleActive(formData: FormData) {
 
 async function deleteProduct(formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireCapability("manageProducts");
   const id = String(formData.get("id"));
   await prisma.product.delete({ where: { id } }).catch(() => {});
 }

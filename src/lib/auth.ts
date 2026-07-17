@@ -183,36 +183,10 @@ export async function getSessionUser(): Promise<User | null> {
   return user;
 }
 
-type AuthorizeResult =
-  { ok: true; user: User } | { ok: false; status: 401 | 403 };
-
-/**
- * Full server-side admin authorization check. Returns a discriminated result
- * instead of throwing, so each caller decides how to react (redirect to login,
- * return JSON, etc.). Fails closed: any missing/invalid step yields `ok: false`.
- *
- * - 401 = no usable session (missing/invalid JWT, or the DB session is
- *   missing/revoked/expired/belongs to another user).
- * - 403 = valid session but the user is not an ADMIN.
- */
-export async function authorizeAdmin(): Promise<AuthorizeResult> {
-  const user = await getSessionUser();
-  if (!user) return { ok: false, status: 401 };
-  if (user.role !== "ADMIN") return { ok: false, status: 403 };
-  return { ok: true, user };
-}
-
-/**
- * Admin gate for server actions and the admin layout: returns the ADMIN user
- * on success, or redirects to the login page on any failure (never returns on
- * the failure path). For route handlers that need to return a specific JSON
- * status, call `authorizeAdmin()` directly instead.
- */
-export async function requireAdmin(): Promise<User> {
-  const result = await authorizeAdmin();
-  if (!result.ok) redirect("/login?next=/admin");
-  return result.user;
-}
+// Admin authorization is capability-based (SSC-36) and lives in `src/lib/authz.ts`
+// (`requireCapability` / `authorizeCapability` / `requireAdminArea`), built on
+// `getSessionUser` above. The old role-literal `requireAdmin` / `authorizeAdmin`
+// helpers were replaced at every call site by capability checks.
 
 /**
  * Session gate for customer-facing pages: returns the authenticated user (any

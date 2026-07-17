@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { OrderStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { requireCapability } from "@/lib/authz";
 import { formatPrice } from "@/lib/format";
 import { markFulfilled } from "./actions";
 
@@ -21,6 +22,8 @@ export default async function AdminOrdersPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
+  // Orders are the one admin surface FULFILLMENT can reach (viewOrders).
+  await requireCapability("viewOrders");
   const { status } = await searchParams;
   const active = STATUSES.includes(status as OrderStatus)
     ? (status as OrderStatus)

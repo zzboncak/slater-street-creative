@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireCapability } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { scentSlug } from "@/lib/scents";
 
@@ -13,6 +13,8 @@ type ScentRow = {
 };
 
 export default async function AdminScentsPage() {
+  // Scents are the product vocabulary, so they ride the manageProducts capability.
+  await requireCapability("manageProducts");
   const scents = (await prisma.scent.findMany({
     orderBy: { name: "asc" },
     include: { _count: { select: { products: true } } },
@@ -98,7 +100,7 @@ export default async function AdminScentsPage() {
 
 async function createScent(formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireCapability("manageProducts");
   const name = String(formData.get("name") || "").trim();
   const slug = scentSlug(name);
   if (!name || !slug) return;
@@ -108,7 +110,7 @@ async function createScent(formData: FormData) {
 
 async function renameScent(formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireCapability("manageProducts");
   const id = String(formData.get("id"));
   const name = String(formData.get("name") || "").trim();
   if (!name) return;
@@ -119,7 +121,7 @@ async function renameScent(formData: FormData) {
 
 async function toggleScentActive(formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireCapability("manageProducts");
   const id = String(formData.get("id"));
   const s = await prisma.scent.findUnique({ where: { id } });
   if (!s) return;
@@ -128,7 +130,7 @@ async function toggleScentActive(formData: FormData) {
 
 async function deleteScent(formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireCapability("manageProducts");
   const id = String(formData.get("id"));
   // onDelete: Restrict means a scent still linked to products can't be deleted;
   // the UI only offers Delete when unused, and this catch is the backstop.
