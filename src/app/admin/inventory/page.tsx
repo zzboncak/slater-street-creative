@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireCapability } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +10,7 @@ type ProductWithInventory = {
 };
 
 export default async function AdminInventoryPage() {
+  await requireCapability("manageInventory");
   const products = (await prisma.product.findMany({
     include: { inventory: true },
     orderBy: { name: "asc" },
@@ -42,7 +43,7 @@ export default async function AdminInventoryPage() {
 
 async function updateInventory(formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireCapability("manageInventory");
   const id = String(formData.get("id"));
   const quantity = Number(formData.get("quantity"));
   if (!Number.isFinite(quantity)) return;

@@ -1,6 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../src/lib/auth";
-import { readAdminCredentials } from "../src/lib/admin-credentials";
+import {
+  readAdminCredentials,
+  readFulfillmentCredentials,
+} from "../src/lib/admin-credentials";
 import { scentSlug } from "../src/lib/scents";
 
 // The one seed file (run via `npm run db:seed` -> tsx). Imports the real password
@@ -189,6 +192,47 @@ async function seedAdmin() {
   }
 }
 
+async function seedFulfillment() {
+  // A FULFILLMENT test user, same env-driven, no-default posture as the admin
+  // (SSC-36). Unset FULFILLMENT_EMAIL/FULFILLMENT_PASSWORD → skip. Never resets an
+  // existing password (rotation-safe), and only promotes a plain CUSTOMER — so if
+  // this email ever collides with the admin's, we don't silently demote an ADMIN.
+  const creds = readFulfillmentCredentials(process.env);
+  if (!creds) {
+    console.warn(
+      "[seed] FULFILLMENT_EMAIL/FULFILLMENT_PASSWORD not set — skipping " +
+        "fulfillment user. Set both to provision one.",
+    );
+    return;
+  }
+
+  const existing = await prisma.user.findUnique({
+    where: { email: creds.email },
+  });
+  if (!existing) {
+    await prisma.user.create({
+      data: {
+        email: creds.email,
+        passwordHash: hashPassword(creds.password),
+        role: "FULFILLMENT",
+      },
+    });
+    console.log(`[seed] created fulfillment user ${creds.email}`);
+  } else if (existing.role === "CUSTOMER") {
+    await prisma.user.update({
+      where: { email: creds.email },
+      data: { role: "FULFILLMENT" },
+    });
+    console.log(
+      `[seed] promoted ${creds.email} to FULFILLMENT (password unchanged)`,
+    );
+  } else {
+    console.log(
+      `[seed] ${creds.email} already has role ${existing.role} — leaving unchanged`,
+    );
+  }
+}
+
 async function seedScents() {
   // One Scent per distinct note across the catalog, idempotent by slug. Only
   // ensures existence (update: {}), so an admin's later rename/deactivate is
@@ -276,6 +320,7 @@ async function seedCoupons() {
 
 async function main() {
   await seedAdmin();
+  await seedFulfillment();
   await seedScents();
   await seedCatalog();
   await seedCoupons();

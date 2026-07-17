@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { CF_IMAGES } from "@/lib/cloudflare-images";
-import { authorizeAdmin } from "@/lib/auth";
+import { authorizeCapability } from "@/lib/authz";
 
 export const dynamic = "force-dynamic";
 
 export async function POST() {
-  // Admin auth guard — preserve the 401 (no session) / 403 (not admin) split.
-  const auth = await authorizeAdmin();
+  // Capability guard — preserve the 401 (no session) / 403 (lacks capability) split.
+  const auth = await authorizeCapability("manageImages");
   if (!auth.ok) {
     const error = auth.status === 403 ? "Forbidden" : "Unauthorized";
     return NextResponse.json({ error }, { status: auth.status });

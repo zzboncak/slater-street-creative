@@ -6,7 +6,7 @@ Snapshot audit after ~1 year untouched. TypeScript compiles clean (`tsc --noEmit
 
 **A1. ~~Duplicate, conflicting middleware.~~ Resolved (SSC-1).** Root `middleware.ts` deleted; `src/middleware.ts` is the single middleware and redirects `/admin` requests without a `session` cookie to `/login?next=…`. Basic Auth (`ADMIN_USER`/`ADMIN_PASS`) and its env-var fail-open are gone.
 
-**A2. ~~Admin server actions have no auth checks of their own.~~ Resolved (SSC-2).** `requireAdmin()` in `src/lib/auth.ts` (full JWT + ADMIN role + DB-session check) is called at the top of every admin server action and the admin layout; `/api/images/direct-upload` uses the shared `authorizeAdmin()`. Middleware presence-check remains a UX redirect only — authorization is enforced server-side in the action/route.
+**A2. ~~Admin server actions have no auth checks of their own.~~ Resolved (SSC-2; capability-based since SSC-36).** Every admin page/action and the admin layout gate server-side via the capability map in `src/lib/authz.ts` — `requireCapability(cap)` (pages/actions) or `authorizeCapability(cap)` (route handlers, e.g. `/api/images/direct-upload`), each doing a full JWT → DB-session → DB-role check. The middleware presence-check remains a UX redirect only — authorization is enforced in the action/route. (SSC-2 originally added role-literal `requireAdmin()`/`authorizeAdmin()`; SSC-36 replaced those with capabilities and the `CUSTOMER`/`FULFILLMENT`/`ADMIN` roles.)
 
 **A3. ~~`/api/customers` GET is unauthenticated.~~ Resolved (SSC-3).** The route (`src/app/api/customers/route.ts`) was deleted — nothing consumed it, and customer records are created via the signup flow. The unauthenticated GET, anonymous POST, and in-memory fallback store are all gone.
 

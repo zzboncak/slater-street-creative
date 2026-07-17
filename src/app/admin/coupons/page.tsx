@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireCapability } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import ConfirmDeleteForm from "@/components/admin/ConfirmDeleteForm";
 
@@ -20,6 +20,7 @@ type Coupon = {
 };
 
 export default async function AdminCouponsPage() {
+  await requireCapability("manageCoupons");
   const coupons = (await prisma.coupon.findMany({
     orderBy: { createdAt: "desc" },
   })) as unknown as Coupon[];
@@ -143,7 +144,7 @@ export default async function AdminCouponsPage() {
 
 async function createCoupon(formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireCapability("manageCoupons");
   const code = String(formData.get("code") || "")
     .trim()
     .toUpperCase();
@@ -188,7 +189,7 @@ async function createCoupon(formData: FormData) {
 
 async function toggleActive(formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireCapability("manageCoupons");
   const id = String(formData.get("id"));
   const c = await prisma.coupon.findUnique({ where: { id } });
   if (!c) return;
@@ -197,7 +198,7 @@ async function toggleActive(formData: FormData) {
 
 async function deleteCoupon(formData: FormData) {
   "use server";
-  await requireAdmin();
+  await requireCapability("manageCoupons");
   const id = String(formData.get("id"));
   await prisma.coupon.delete({ where: { id } }).catch(() => {});
 }

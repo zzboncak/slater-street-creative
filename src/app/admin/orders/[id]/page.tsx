@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { requireCapability } from "@/lib/authz";
 import { formatPrice } from "@/lib/format";
 import { markFulfilled } from "../actions";
 
@@ -12,6 +13,9 @@ export default async function AdminOrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  // Gate explicitly on viewOrders (not just the coarse layout gate), matching the
+  // orders list — so this page's protection is self-contained.
+  await requireCapability("viewOrders");
   const { id } = await params;
   const order = await prisma.order.findUnique({
     where: { id },

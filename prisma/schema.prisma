@@ -11,7 +11,8 @@ datasource db {
 
 enum Role {
   ADMIN
-  USER
+  CUSTOMER // was USER, renamed in the SSC-36 migration (relabel, keeps its slot)
+  FULFILLMENT // ships orders: viewOrders + fulfillOrders only (see src/lib/authz.ts)
 }
 
 enum ProductType {
@@ -113,7 +114,7 @@ model User {
   email        String    @unique
   passwordHash String
   createdAt    DateTime  @default(now())
-  role         Role      @default(USER)
+  role         Role      @default(CUSTOMER)
 
   customerId   String?   @unique
   customer     Customer? @relation(fields: [customerId], references: [id])

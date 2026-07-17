@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
   const passwordHash = hashPassword(password);
   const user = await prisma.user.create({
-    data: { email, passwordHash, role: "USER" },
+    data: { email, passwordHash, role: "CUSTOMER" },
   });
 
   // Optionally link/create customer record on signup

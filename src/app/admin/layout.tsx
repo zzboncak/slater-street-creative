@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminArea } from "@/lib/authz";
 
 export const metadata = { title: "Admin" };
 
@@ -8,7 +8,10 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await requireAdmin();
+  // Coarse gate: admit any admin-area role (ADMIN or FULFILLMENT); each page and
+  // action below enforces its specific capability. Role-aware nav (hiding links a
+  // FULFILLMENT user can't use) is the follow-up FE ticket, SSC-37.
+  await requireAdminArea();
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
