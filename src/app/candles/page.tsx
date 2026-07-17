@@ -14,7 +14,7 @@ export default async function CandlesPage() {
         {products.map((product) => (
           <p key={product.id}>
             <span className="font-bold">{product.name}</span> —{" "}
-            {product.scentProfile.join(" | ")}
+            {product.scents.join(" | ")}
           </p>
         ))}
       </div>

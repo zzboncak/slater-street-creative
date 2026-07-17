@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "../src/lib/auth";
 import { readAdminCredentials } from "../src/lib/admin-credentials";
+import { scentSlug } from "../src/lib/scents";
 
 // The one seed file (run via `npm run db:seed` -> tsx). Imports the real password
 // hashing from src/lib/auth so there's no duplicated crypto to keep in sync.
@@ -188,9 +189,29 @@ async function seedAdmin() {
   }
 }
 
+async function seedScents() {
+  // One Scent per distinct note across the catalog, idempotent by slug. Only
+  // ensures existence (update: {}), so an admin's later rename/deactivate is
+  // preserved across re-seeds — same posture as the admin user.
+  const notes = new Map<string, string>(); // slug -> display name (first seen)
+  for (const c of catalog)
+    for (const n of c.scentProfile) {
+      const slug = scentSlug(n);
+      if (slug && !notes.has(slug)) notes.set(slug, n);
+    }
+  for (const [slug, name] of notes) {
+    await prisma.scent.upsert({
+      where: { slug },
+      update: {},
+      create: { name, slug },
+    });
+  }
+  console.log(`Seeded ${notes.size} scents.`);
+}
+
 async function seedCatalog() {
   // Remove the legacy placeholder candles this catalog replaced (cascade drops
-  // their inventory). Safe no-op once they're gone.
+  // their inventory + scent links). Safe no-op once they're gone.
   await prisma.product.deleteMany({
     where: { id: { in: LEGACY_PRODUCT_IDS } },
   });
@@ -201,7 +222,6 @@ async function seedCatalog() {
       update: {
         name: c.name,
         priceCents: PLACEHOLDER_PRICE_CENTS,
-        scentProfile: c.scentProfile,
         type: "CANDLE",
         active: true,
       },
@@ -210,12 +230,28 @@ async function seedCatalog() {
         name: c.name,
         priceCents: PLACEHOLDER_PRICE_CENTS,
         image: null,
-        scentProfile: c.scentProfile,
         type: "CANDLE",
         active: true,
         inventory: { create: { quantity: DEFAULT_STOCK } },
       },
     });
+
+    // Resync this candle's scent links to the catalog (idempotent): clear, then
+    // recreate in note order, referencing the Scent rows seeded above.
+    const slugs = [...new Set(c.scentProfile.map(scentSlug).filter(Boolean))];
+    const scentRows = await prisma.scent.findMany({
+      where: { slug: { in: slugs } },
+      select: { id: true, slug: true },
+    });
+    const idBySlug = new Map(scentRows.map((s) => [s.slug, s.id]));
+    const links: { productId: string; scentId: string; position: number }[] =
+      [];
+    slugs.forEach((slug, position) => {
+      const scentId = idBySlug.get(slug);
+      if (scentId) links.push({ productId: c.id, scentId, position });
+    });
+    await prisma.productScent.deleteMany({ where: { productId: c.id } });
+    await prisma.productScent.createMany({ data: links });
   }
   console.log(`Seeded ${catalog.length} products.`);
 }
@@ -240,6 +276,7 @@ async function seedCoupons() {
 
 async function main() {
   await seedAdmin();
+  await seedScents();
   await seedCatalog();
   await seedCoupons();
 }

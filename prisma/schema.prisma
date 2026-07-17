@@ -34,13 +34,42 @@ model Product {
   priceCents    Int        // price stored in cents
   image         String?
   type          ProductType @default(CANDLE)
-  scentProfile  String[]   // array of scent notes
   active        Boolean    @default(true)
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
   inventory   Inventory?
   orderItems  OrderItem[]
+  scents      ProductScent[] // scent notes, via the join (SSC-32)
+}
+
+// A scent note as a first-class, admin-managed entity (SSC-32). `slug` is the
+// unique integrity key (normalized name) so casing/whitespace variants can't
+// duplicate; `active` soft-hides a note from new use without breaking history.
+model Scent {
+  id        String   @id @default(cuid())
+  name      String // display form, e.g. "Blue Spruce"
+  slug      String   @unique // normalized key, e.g. "blue-spruce"
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products ProductScent[]
+}
+
+// Explicit Product<->Scent join. Composite PK forbids duplicate links; `position`
+// preserves a candle's curated note order. Deleting a product cascades its links;
+// a scent still in use can't be deleted (Restrict) — that's the integrity win.
+model ProductScent {
+  productId String
+  scentId   String
+  position  Int // 0-based order of this note on the product
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  scent   Scent   @relation(fields: [scentId], references: [id], onDelete: Restrict)
+
+  @@id([productId, scentId])
+  @@index([scentId])
 }
 
 model Inventory {

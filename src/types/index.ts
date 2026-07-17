@@ -4,12 +4,12 @@ import type { Product as PrismaProduct } from "@prisma/client";
 // source of truth. Nullable columns (description, image) are normalized to "" by
 // the data-access helpers in src/lib/products.ts so components don't each handle
 // null. Money stays as `priceCents` (integer cents) end to end.
-export type Product = Pick<
-  PrismaProduct,
-  "id" | "name" | "priceCents" | "scentProfile"
-> & {
+export type Product = Pick<PrismaProduct, "id" | "name" | "priceCents"> & {
   description: string;
   image: string;
+  // Scent-note display names, in curated order — derived from the ProductScent
+  // relation by the helpers in src/lib/products.ts (SSC-32).
+  scents: string[];
 };
 
 // The cart persists only ids + quantities. Prices/details are re-fetched from
