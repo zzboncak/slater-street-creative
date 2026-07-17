@@ -56,7 +56,7 @@ See `AUDIT.md` for the full list. The ones that will bite you:
 5. **Abandoned PENDING orders are swept to `EXPIRED`.** Checkout creates a PENDING order before Stripe; a daily Vercel Cron (`vercel.json`) hits `GET /api/cron/expire-orders` (guarded by `CRON_SECRET`) and marks PENDING orders older than 24h as `EXPIRED` (`src/lib/orders.ts`, SSC-26). No inventory impact — stock is only touched on the paid webhook.
 6. **`DATABASE_URL` is required.** `src/lib/prisma.ts` throws at startup if it's unset (including during `next build`). Import the client statically — `import { prisma } from "@/lib/prisma"` — everywhere; the old `if (!process.env.DATABASE_URL)` guards and lazy `await import("@/lib/prisma")` are gone (SSC-8).
 7. `.gitignore` ignores `.github/*` **except** `.github/workflows/` (exception in place) — CI workflows are committable; other `.github` files (e.g. copilot instructions) stay ignored.
-8. One seed file: `prisma/seed.ts`, run via `tsx` (`npm run db:seed`). It imports the real `hashPassword` from `src/lib/auth` and seeds the ADMIN user, the candle catalog + inventory, and a test coupon.
+8. One seed file: `prisma/seed.ts`, run via `tsx` (`npm run db:seed`). It imports the real `hashPassword` from `src/lib/auth` and seeds the candle catalog + inventory and a test coupon. **The admin user has NO default credential** — it's created only when `ADMIN_EMAIL` + `ADMIN_PASSWORD` are set (`readAdminCredentials` in `src/lib/admin-credentials.ts`), and the seed **never resets an existing admin's password** (so a re-seed can't clobber a rotated one). Rotate/provision an admin on any DB with `npm run set-admin-password` (`scripts/set-admin-password.ts`) — reads `ADMIN_EMAIL`/`ADMIN_PASSWORD`/`DATABASE_URL` from the env, reuses `hashPassword`, touches only the admin row.
 9. **After changing dependencies, regenerate the lockfile cleanly** (`rm -rf node_modules package-lock.json && npm install`) and confirm `npm ci` passes. An incremental `npm install` on macOS drops Linux-only optional deps (`@emnapi/*`) from the lock, which makes CI's `npm ci` fail on the Linux runner.
 
 ## Security rules
@@ -65,6 +65,7 @@ See `AUDIT.md` for the full list. The ones that will bite you:
 - Re-price carts server-side from the DB at checkout; never trust client-supplied prices.
 - Validate all input server-side; enforce admin access with `requireAdmin()` / `authorizeAdmin()` inside actions/routes, not just middleware.
 - Passwords are pbkdf2 with a per-user random salt, stored as `salt:hash` in `User.passwordHash`. `JWT_SECRET` signs session tokens only and is required in production (the app throws at startup if unset; dev uses a warned fallback). Changing the hashing scheme invalidates existing password hashes — re-seed dev accounts.
+- **No default admin credential.** The admin login comes from `ADMIN_EMAIL` / `ADMIN_PASSWORD` (env / deploy secrets), never a hardcoded value; the seed creates it only when both are set and never resets an existing password. Rotate with `npm run set-admin-password`. Don't reintroduce a baked-in `admin`/`admin`.
 
 ## Workflow
 

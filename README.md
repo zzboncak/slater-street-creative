@@ -46,8 +46,15 @@ npx prisma migrate dev --name init
 
 `/admin` requires a logged-in session with an `ADMIN`-role account — visiting
 it without one redirects to `/login`. Signup (`/signup`) creates a regular
-`USER`; the seed script (`npm run db:seed`) creates the admin account. Log in
-with those credentials, then visit http://localhost:3000/admin
+`USER`. **There is no default admin.** Set `ADMIN_EMAIL` + `ADMIN_PASSWORD` (see
+`.env.example`), then `npm run db:seed` provisions the admin (it never resets an
+existing one). Log in with those, then visit http://localhost:3000/admin. To
+rotate the password on any database later:
+
+```
+ADMIN_EMAIL=you@example.com ADMIN_PASSWORD='<new>' DATABASE_URL='<target>' \
+  npm run set-admin-password
+```
 
 ## Project Structure
 

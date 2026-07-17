@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
-import { hashPassword, verifyPassword } from "../src/lib/auth";
+import { hashPassword } from "../src/lib/auth";
+import { readAdminCredentials } from "../src/lib/admin-credentials";
 
 // The one seed file (run via `npm run db:seed` -> tsx). Imports the real password
 // hashing from src/lib/auth so there's no duplicated crypto to keep in sync.
@@ -147,24 +148,43 @@ const catalog: { id: string; name: string; scentProfile: string[] }[] = [
 ];
 
 async function seedAdmin() {
-  const email = "admin"; // username stored in the email field per current schema
-  const existing = await prisma.user.findUnique({ where: { email } });
+  // Credentials come from the environment — never a shipped default. If they're
+  // unset we SKIP admin creation (the catalog still seeds); set ADMIN_EMAIL +
+  // ADMIN_PASSWORD to provision one. To rotate an existing admin's password use
+  // `npm run set-admin-password` — the seed deliberately never touches an
+  // existing admin's password, so a re-seed can't clobber a rotated one.
+  const admin = readAdminCredentials(process.env);
+  if (!admin) {
+    console.warn(
+      "[seed] ADMIN_EMAIL/ADMIN_PASSWORD not set — skipping admin user. " +
+        "Set both to provision one.",
+    );
+    return;
+  }
+
+  const existing = await prisma.user.findUnique({
+    where: { email: admin.email },
+  });
   if (!existing) {
     await prisma.user.create({
-      data: { email, passwordHash: hashPassword("admin"), role: "ADMIN" },
+      data: {
+        email: admin.email,
+        passwordHash: hashPassword(admin.password),
+        role: "ADMIN",
+      },
     });
-    console.log("Seeded admin user: 'admin' / 'admin'");
-  } else if (
-    existing.role !== "ADMIN" ||
-    !verifyPassword("admin", existing.passwordHash)
-  ) {
+    console.log(`[seed] created admin user ${admin.email}`);
+  } else if (existing.role !== "ADMIN") {
+    // Ensure the row is an admin, but NEVER change its password (rotation-safe).
     await prisma.user.update({
-      where: { email },
-      data: { role: "ADMIN", passwordHash: hashPassword("admin") },
+      where: { email: admin.email },
+      data: { role: "ADMIN" },
     });
-    console.log("Updated existing admin to role ADMIN with default password.");
+    console.log(`[seed] promoted ${admin.email} to ADMIN (password unchanged)`);
   } else {
-    console.log("Admin user already exists");
+    console.log(
+      `[seed] admin ${admin.email} already exists (password unchanged)`,
+    );
   }
 }
 
