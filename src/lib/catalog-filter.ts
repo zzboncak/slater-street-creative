@@ -9,14 +9,12 @@ function includesCI(haystack: string, needle: string): boolean {
 /**
  * Sorted, de-duplicated scent notes across a product list — drives the filter
  * pills. Pure (framework-free) so it runs on the server (to build the pill list)
- * and is unit-testable. When the catalog outgrows this in-memory pass, swap for a
- * `SELECT DISTINCT unnest(scentProfile)` (SSC-19 "define fully when it grows").
+ * and is unit-testable. When search moves server-side (SSC-33) the pill list will
+ * come straight from the Scent table instead of flattening each product.
  */
-export function distinctScents(
-  products: Pick<Product, "scentProfile">[],
-): string[] {
+export function distinctScents(products: Pick<Product, "scents">[]): string[] {
   const set = new Set<string>();
-  for (const p of products) for (const s of p.scentProfile) set.add(s);
+  for (const p of products) for (const s of p.scents) set.add(s);
   return [...set].sort((a, b) => a.localeCompare(b));
 }
 
@@ -33,12 +31,12 @@ export function filterProducts(
 ): Product[] {
   const needle = (q ?? "").trim().toLowerCase();
   return products.filter((p) => {
-    if (scent && !p.scentProfile.includes(scent)) return false;
+    if (scent && !p.scents.includes(scent)) return false;
     if (!needle) return true;
     return (
       includesCI(p.name, needle) ||
       includesCI(p.description, needle) ||
-      p.scentProfile.some((s) => includesCI(s, needle))
+      p.scents.some((s) => includesCI(s, needle))
     );
   });
 }

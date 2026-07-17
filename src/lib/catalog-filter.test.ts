@@ -7,7 +7,7 @@ function p(overrides: Partial<Product>): Product {
     id: "p1",
     name: "Candle",
     priceCents: 1500,
-    scentProfile: [],
+    scents: [],
     description: "",
     image: "",
     ...overrides,
@@ -18,19 +18,19 @@ const catalog = [
   p({
     id: "garden",
     name: "The Garden",
-    scentProfile: ["Lavender", "Sage"],
+    scents: ["Lavender", "Sage"],
     description: "A calm garden blend",
   }),
   p({
     id: "cafe",
     name: "The Cafe",
-    scentProfile: ["Espresso", "Vanilla"],
+    scents: ["Espresso", "Vanilla"],
     description: "Warm coffeehouse",
   }),
   p({
     id: "dusk",
     name: "Dusk",
-    scentProfile: ["Lavender", "Amber"],
+    scents: ["Lavender", "Amber"],
     description: "Evening woods",
   }),
 ];

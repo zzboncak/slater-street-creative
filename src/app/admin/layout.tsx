@@ -16,6 +16,7 @@ export default async function AdminLayout({
       <nav className="mb-6 flex gap-4 text-sm underline">
         <Link href="/admin">Dashboard</Link>
         <Link href="/admin/products">Products</Link>
+        <Link href="/admin/scents">Scents</Link>
         <Link href="/admin/inventory">Inventory</Link>
         <Link href="/admin/coupons">Coupons</Link>
         <Link href="/admin/orders">Orders</Link>
