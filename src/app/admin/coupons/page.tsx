@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import ConfirmDeleteForm from "@/components/admin/ConfirmDeleteForm";
 
 export const dynamic = "force-dynamic";
 type Coupon = {
@@ -126,16 +127,11 @@ export default async function AdminCouponsPage() {
                     {c.active ? "Deactivate" : "Activate"}
                   </button>
                 </form>
-                <form
+                <ConfirmDeleteForm
                   action={deleteCoupon}
-                  className="inline"
-                  onSubmit={(e) => {
-                    if (!confirm("Delete coupon?")) e.preventDefault();
-                  }}
-                >
-                  <input type="hidden" name="id" value={c.id} />
-                  <button className="text-red-600 underline">Delete</button>
-                </form>
+                  id={c.id}
+                  confirmText="Delete coupon?"
+                />
               </td>
             </tr>
           ))}

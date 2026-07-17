@@ -56,6 +56,27 @@ ADMIN_EMAIL=you@example.com ADMIN_PASSWORD='<new>' DATABASE_URL='<target>' \
   npm run set-admin-password
 ```
 
+## Deploying (Vercel) & migrations
+
+The app deploys to Vercel. **Migrations apply automatically on production
+deploys**: the `build` script runs `prisma migrate deploy` before `next build`,
+but only when `VERCEL_ENV=production` (`scripts/prod-migrate.mjs`). Preview
+builds and local `npm run build` skip it — a preview shares the prod
+`DATABASE_URL`, so this prevents a preview from migrating prod ahead of a merge
+(SSC-33). No new secrets: the build already has `DATABASE_URL`.
+
+Trade-off: migrations run at build time and are forward-only — a build that
+fails _after_ migrating leaves the schema ahead of the deployed code. That's safe
+for our additive migrations (new columns/tables), which older code ignores.
+
+Run one manually against any database (e.g. to catch prod up out-of-band), or
+check a database matches the committed migration history:
+
+```
+DATABASE_URL='<target>' npx prisma migrate deploy   # apply pending migrations
+DATABASE_URL='<target>' npx prisma migrate status   # read-only drift check
+```
+
 ## Project Structure
 
 - `src/app/page.tsx` – Landing page with hero + featured products
